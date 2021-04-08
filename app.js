@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-'use strict';
+"use strict";
 
-var os = require('os');
-var path = require('path');
-var dotenv = require("dotenv");
-var fs = require('fs');
+const os = require('os');
+const path = require('path');
+const dotenv = require("dotenv");
+const fs = require('fs');
 
-var configPaths = [ path.join(os.homedir(), '.config', 'btc-rpc-explorer.env'), path.join(process.cwd(), '.env') ];
+const configPaths = [ path.join(os.homedir(), '.config', 'btc-rpc-explorer.env'), path.join(process.cwd(), '.env') ];
 configPaths.filter(fs.existsSync).forEach(path => {
 	console.log('Loading env file:', path);
 	dotenv.config({ path });
@@ -17,87 +17,144 @@ global.cacheStats = {};
 
 // debug module is already loaded by the time we do dotenv.config
 // so refresh the status of DEBUG env var
-var debug = require("debug");
+const debug = require("debug");
 debug.enable(process.env.DEBUG || "btcexp:app,btcexp:error");
 
-var debugLog = debug("btcexp:app");
-var debugErrorLog = debug("btcexp:error");
-var debugPerfLog = debug("btcexp:actionPerformace");
+const debugLog = debug("btcexp:app");
+const debugErrorLog = debug("btcexp:error");
+const debugPerfLog = debug("btcexp:actionPerformace");
 
-var express = require('express');
-var favicon = require('serve-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
-var session = require("express-session");
-var csurf = require("csurf");
-var config = require("./app/config.js");
-var simpleGit = require('simple-git');
-var utils = require("./app/utils.js");
-var moment = require("moment");
-var Decimal = require('decimal.js');
-var bitcoinCore = require("bitcoin-core");
-var pug = require("pug");
-var momentDurationFormat = require("moment-duration-format");
-var coreApi = require("./app/api/coreApi.js");
-var coins = require("./app/coins.js");
-var request = require("request");
-var qrcode = require("qrcode");
-var addressApi = require("./app/api/addressApi.js");
-var electrumAddressApi = require("./app/api/electrumAddressApi.js");
-var coreApi = require("./app/api/coreApi.js");
-var auth = require('./app/auth.js');
-var sso = require('./app/sso.js');
-var markdown = require("markdown-it")();
+const express = require('express');
+const favicon = require('serve-favicon');
+const logger = require('morgan');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
+const session = require("express-session");
+const csurf = require("csurf");
+const config = require("./app/config.js");
+const simpleGit = require('simple-git');
+const utils = require("./app/utils.js");
+const moment = require("moment");
+const Decimal = require('decimal.js');
+const bitcoinCore = require("bitcoin-core");
+const pug = require("pug");
+const momentDurationFormat = require("moment-duration-format");
+const coreApi = require("./app/api/coreApi.js");
+const coins = require("./app/coins.js");
+const request = require("request");
+const qrcode = require("qrcode");
+const addressApi = require("./app/api/addressApi.js");
+const electrumAddressApi = require("./app/api/electrumAddressApi.js");
+const auth = require('./app/auth.js');
+const sso = require('./app/sso.js');
+const markdown = require("markdown-it")();
+const v8 = require("v8");
+const axios = require("axios");
 
-var package_json = require('./package.json');
+require("./app/currencies.js");
+
+const package_json = require('./package.json');
 global.appVersion = package_json.version;
 
-var crawlerBotUserAgentStrings = [ "Googlebot", "Bingbot", "Slurp", "DuckDuckBot", "Baiduspider", "YandexBot", "Sogou", "Exabot", "facebot", "ia_archiver" ];
+global.btcNodeSemver = "0.0.0";
 
-var baseActionsRouter = require('./routes/baseRouter.js');
-var apiActionsRouter = require('./routes/apiRouter.js');
-var snippetActionsRouter = require('./routes/snippetRouter.js');
 
-var app = express();
+const baseActionsRouter = require('./routes/baseRouter.js');
+const apiActionsRouter = require('./routes/apiRouter.js');
+const snippetActionsRouter = require('./routes/snippetRouter.js');
+const adminActionsRouter = require('./routes/adminRouter.js');
+
+const expressApp = express();
+
+
+const statTracker = require("./app/statTracker.js");
+
+const statsProcessFunction = (name, stats) => {
+	if (process.env.STATS_API_URL) {
+		const data = Object.assign({}, stats);
+		data.name = name;
+
+		axios.post(process.env.STATS_API_URL, data)
+		.then(res => { /*console.log(res.data);*/ })
+		.catch(error => {
+			utils.logError("38974wrg9w7dsgfe", error);
+		});
+	}
+};
+
+const processStatsInterval = setInterval(() => {
+	statTracker.processAndReset(
+		statsProcessFunction,
+		statsProcessFunction,
+		statsProcessFunction);
+
+}, process.env.STATS_PROCESS_INTERVAL || (5 * 60 * 1000));
+	
+// Don't keep Node.js process up
+processStatsInterval.unref();
+
+
+
+const systemMonitor = require("./app/systemMonitor.js");
+
+const normalizeActions = require("./app/normalizeActions.js");
+expressApp.use(require("./app/actionPerformanceMonitor.js")(statTracker, {
+	ignoredEndsWithActions: "\.js|\.css|\.svg|\.png|\.woff2",
+	ignoredStartsWithActions: `${config.baseUrl}snippet`,
+	normalizeAction: (action) => {
+		return normalizeActions(config.baseUrl, action);
+	},
+}));
 
 // view engine setup
-app.set('views', path.join(__dirname, 'views'));
+expressApp.set('views', path.join(__dirname, 'views'));
 
 // ref: https://blog.stigok.com/post/disable-pug-debug-output-with-expressjs-web-app
-app.engine('pug', (path, options, fn) => {
+expressApp.engine('pug', (path, options, fn) => {
 	options.debug = false;
 	return pug.__express.call(null, path, options, fn);
 });
 
-app.set('view engine', 'pug');
-app.use(cookieParser());
+expressApp.set('view engine', 'pug');
 
-// basic http authentication
+if (process.env.NODE_ENV != "local") {
+	// enable view cache regardless of env (development/production)
+	// ref: https://pugjs.org/api/express.html
+	expressApp.enable('view cache');
+}
+
+expressApp.use(cookieParser());
+
+expressApp.disable('x-powered-by');
+
+
 if (process.env.BTCEXP_BASIC_AUTH_PASSWORD) {
-	app.disable('x-powered-by');
-	app.use(auth(process.env.BTCEXP_BASIC_AUTH_PASSWORD));
-// sso authentication
+	// basic http authentication
+	expressApp.use(auth(process.env.BTCEXP_BASIC_AUTH_PASSWORD));
+
 } else if (process.env.BTCEXP_SSO_TOKEN_FILE) {
-	app.disable('x-powered-by');
-	app.use(sso(process.env.BTCEXP_SSO_TOKEN_FILE, process.env.BTCEXP_SSO_LOGIN_REDIRECT_URL));
+	// sso authentication
+	expressApp.use(sso(process.env.BTCEXP_SSO_TOKEN_FILE, process.env.BTCEXP_SSO_LOGIN_REDIRECT_URL));
 }
 
 // uncomment after placing your favicon in /public
-//app.use(favicon(__dirname + '/public/favicon.ico'));
-//app.use(logger('dev'));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(session({
+//expressApp.use(favicon(__dirname + '/public/favicon.ico'));
+//expressApp.use(logger('dev'));
+expressApp.use(bodyParser.json());
+expressApp.use(bodyParser.urlencoded({ extended: false }));
+expressApp.use(session({
 	secret: config.cookieSecret,
 	resave: false,
 	saveUninitialized: false
 }));
 
-app.use(config.baseUrl, express.static(path.join(__dirname, 'public')));
+expressApp.use(config.baseUrl, express.static(path.join(__dirname, 'public'), {
+	maxAge: 60 * 60 * 1000
+}));
+
 
 if (config.baseUrl != '/') {
-	app.get('/', (req, res) => res.redirect(config.baseUrl));
+	expressApp.get('/', (req, res) => res.redirect(config.baseUrl));
 }
 
 process.on("unhandledRejection", (reason, p) => {
@@ -181,7 +238,7 @@ function loadHistoricalDataForChain(chain) {
 				} else if (item.type == "tx") {
 					global.specialTransactions[item.txid] = item;
 
-				} else if (item.type == "address") {
+				} else if (item.type == "address" || item.address) {
 					global.specialAddresses[item.address] = {type:"fun", addressInfo:item};
 				}
 			}
@@ -193,29 +250,38 @@ function verifyRpcConnection() {
 	if (!global.activeBlockchain) {
 		debugLog(`Verifying RPC connection...`);
 
-		coreApi.getNetworkInfo().then(function(getnetworkinfo) {
-			coreApi.getBlockchainInfo().then(function(getblockchaininfo) {
-				global.activeBlockchain = getblockchaininfo.chain;
+		Promise.all([
+			coreApi.getNetworkInfo(),
+			coreApi.getBlockchainInfo(),
+			coreApi.getIndexInfo(),
+		]).then(([ getnetworkinfo, getblockchaininfo, getindexinfo ]) => {
+			global.activeBlockchain = getblockchaininfo.chain;
 
-				// we've verified rpc connection, no need to keep trying
-				clearInterval(global.verifyRpcConnectionIntervalId);
+			// we've verified rpc connection, no need to keep trying
+			clearInterval(global.verifyRpcConnectionIntervalId);
 
-				onRpcConnectionVerified(getnetworkinfo, getblockchaininfo);
-
-			}).catch(function(err) {
-				utils.logError("329u0wsdgewg6ed", err);
-			});
+			onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo);
 		}).catch(function(err) {
 			utils.logError("32ugegdfsde", err);
 		});
 	}
 }
 
-function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo) {
+function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo) {
 	// localservicenames introduced in 0.19
 	var services = getnetworkinfo.localservicesnames ? ("[" + getnetworkinfo.localservicesnames.join(", ") + "]") : getnetworkinfo.localservices;
 
 	global.getnetworkinfo = getnetworkinfo;
+	global.getindexinfo = getindexinfo;
+
+	if (getindexinfo.txindex) {
+		global.txindexAvailable = true;
+	}
+
+	if (getblockchaininfo.pruned) {
+		global.prunedBlockchain = true;
+		global.pruneHeight = getblockchaininfo.pruneheight;
+	}
 
 	var bitcoinCoreVersionRegex = /^.*\/Satoshi\:(.*)\/.*$/;
 
@@ -378,7 +444,7 @@ function refreshNetworkVolumes() {
 }
 
 
-app.onStartup = function() {
+expressApp.onStartup = function() {
 	global.appStartTime = new Date().getTime();
 	
 	global.config = config;
@@ -390,6 +456,29 @@ app.onStartup = function() {
 	global.specialAddresses = {};
 
 	loadChangelog();
+
+	global.nodeVersion = process.version;
+	debugLog(`Environment(${expressApp.get("env")}) - Node: ${process.version}, Platform: ${process.platform}, Versions: ${JSON.stringify(process.versions)}`);
+
+
+	// dump "startup" heap after 5sec
+	if (false) {
+		(function () {
+			var callback = function() {
+				debugLog("Waited 5 sec after startup, now dumping 'startup' heap...");
+
+				const filename = `./heapDumpAtStartup-${Date.now()}.heapsnapshot`;
+				const heapdumpStream = v8.getHeapSnapshot();
+				const fileStream = fs.createWriteStream(filename);
+				heapdumpStream.pipe(fileStream);
+
+				debugLog("Heap dump at startup written to", filename);
+			};
+
+			setTimeout(callback, 5000);
+		})();
+	}
+	
 
 	if (global.sourcecodeVersion == null && fs.existsSync('.git')) {
 		simpleGit(".").log(["-n 1"], function(err, log) {
@@ -405,17 +494,17 @@ app.onStartup = function() {
 				debugLog(`Starting ${global.coinConfig.ticker} RPC Explorer, v${global.appVersion} (commit: '${global.sourcecodeVersion}', date: ${global.sourcecodeDate}) at http://${config.host}:${config.port}${config.baseUrl}`);
 			}
 
-			app.continueStartup();
+			expressApp.continueStartup();
 		});
 
 	} else {
 		debugLog(`Starting ${global.coinConfig.ticker} RPC Explorer, v${global.appVersion} at http://${config.host}:${config.port}${config.baseUrl}`);
 
-		app.continueStartup();
+		expressApp.continueStartup();
 	}
 }
 
-app.continueStartup = function() {
+expressApp.continueStartup = function() {
 	var rpcCred = config.credentials.rpc;
 	debugLog(`Connecting to RPC node at ${rpcCred.host}:${rpcCred.port}`);
 
@@ -439,6 +528,11 @@ app.continueStartup = function() {
 
 	global.rpcClientNoTimeout = new bitcoinCore(rpcClientNoTimeoutProperties);
 
+	// default values - after we connect via RPC, we update this
+	global.txindexAvailable = false;
+	global.prunedBlockchain = false;
+	global.pruneHeight = -1;
+
 
 	// keep trying to verify rpc connection until we succeed
 	// note: see verifyRpcConnection() for associated clearInterval() after success
@@ -452,16 +546,16 @@ app.continueStartup = function() {
 			utils.logError("32907ghsd0ge", `Unrecognized value for BTCEXP_ADDRESS_API: '${config.addressApi}'. Valid options are: ${supportedAddressApis}`);
 		}
 
-		if (config.addressApi == "electrumx") {
-			if (config.electrumXServers && config.electrumXServers.length > 0) {
+		if (config.addressApi == "electrum" || config.addressApi == "electrumx") {
+			if (config.electrumServers && config.electrumServers.length > 0) {
 				electrumAddressApi.connectToServers().then(function() {
 					global.electrumAddressApi = electrumAddressApi;
 					
 				}).catch(function(err) {
-					utils.logError("31207ugf4e0fed", err, {electrumXServers:config.electrumXServers});
+					utils.logError("31207ugf4e0fed", err, {electrumServers:config.electrumServers});
 				});
 			} else {
-				utils.logError("327hs0gde", "You must set the 'BTCEXP_ELECTRUMX_SERVERS' environment variable when BTCEXP_ADDRESS_API=electrumx.");
+				utils.logError("327hs0gde", "You must set the 'BTCEXP_ELECTRUM_SERVERS' environment variable when BTCEXP_ADDRESS_API=electrum.");
 			}
 		}
 	}
@@ -480,14 +574,13 @@ app.continueStartup = function() {
 	setInterval(utils.logMemoryUsage, 5000);
 };
 
-app.use(function(req, res, next) {
+expressApp.use(function(req, res, next) {
 	req.startTime = Date.now();
-	req.startMem = process.memoryUsage().heapUsed;
 
 	next();
 });
 
-app.use(function(req, res, next) {
+expressApp.use(function(req, res, next) {
 	// make session available in templates
 	res.locals.session = req.session;
 
@@ -498,10 +591,9 @@ app.use(function(req, res, next) {
 	}
 
 	var userAgent = req.headers['user-agent'];
-	for (var i = 0; i < crawlerBotUserAgentStrings.length; i++) {
-		if (userAgent.indexOf(crawlerBotUserAgentStrings[i]) != -1) {
-			res.locals.crawlerBot = true;
-		}
+	var crawler = utils.getCrawlerFromUserAgentString(userAgent);
+	if (crawler) {
+		res.locals.crawlerBot = true;
 	}
 
 	// make a bunch of globals available to templates
@@ -522,56 +614,31 @@ app.use(function(req, res, next) {
 	res.locals.pageErrors = [];
 
 
-	// currency format type
-	if (!req.session.currencyFormatType) {
-		var cookieValue = req.cookies['user-setting-currencyFormatType'];
+	if (!req.session.userSettings) {
+		req.session.userSettings = JSON.parse(req.cookies["user-settings"] || "{}");
+	}
 
-		if (cookieValue) {
-			req.session.currencyFormatType = cookieValue;
+	const userSettings = req.session.userSettings;
+	res.locals.userSettings = userSettings;
 
-		} else {
-			req.session.currencyFormatType = "";
-		}
+
+
+	if (!userSettings.displayCurrency) {
+		userSettings.displayCurrency = "btc";
+	}
+
+	if (!userSettings.localCurrency) {
+		userSettings.localCurrency = "usd";
 	}
 
 	// theme
-	if (!req.session.uiTheme) {
-		var cookieValue = req.cookies['user-setting-uiTheme'];
-
-		if (cookieValue) {
-			req.session.uiTheme = cookieValue;
-
-		} else {
-			req.session.uiTheme = "";
-		}
+	if (!userSettings.uiTheme) {
+		userSettings.uiTheme = config.defaultTheme;
 	}
 
-	// blockPage.showTechSummary
-	if (!req.session.blockPageShowTechSummary) {
-		var cookieValue = req.cookies['user-setting-blockPageShowTechSummary'];
 
-		if (cookieValue) {
-			req.session.blockPageShowTechSummary = cookieValue;
-
-		} else {
-			req.session.blockPageShowTechSummary = "true";
-		}
-	}
-
-	// homepage banner
-	if (!req.session.hideHomepageBanner) {
-		var cookieValue = req.cookies['user-setting-hideHomepageBanner'];
-
-		if (cookieValue) {
-			req.session.hideHomepageBanner = cookieValue;
-
-		} else {
-			req.session.hideHomepageBanner = "false";
-		}
-	}
-
-	res.locals.currencyFormatType = req.session.currencyFormatType;
-	global.currencyFormatType = req.session.currencyFormatType;
+	res.locals.displayCurrency = userSettings.displayCurrency;
+	res.locals.localCurrency = userSettings.localCurrency;
 
 
 	if (!["/", "/connect"].includes(req.originalUrl)) {
@@ -606,27 +673,32 @@ app.use(function(req, res, next) {
 	next();
 });
 
-app.use(csurf(), (req, res, next) => {
+expressApp.use(csurf(), (req, res, next) => {
 	res.locals.csrfToken = req.csrfToken();
+
 	next();
 });
 
-app.use(config.baseUrl, baseActionsRouter);
-app.use(config.baseUrl + 'api/', apiActionsRouter);
-app.use(config.baseUrl + 'snippet/', snippetActionsRouter);
+expressApp.use(config.baseUrl, baseActionsRouter);
+expressApp.use(config.baseUrl + 'api/', apiActionsRouter);
+expressApp.use(config.baseUrl + 'snippet/', snippetActionsRouter);
+expressApp.use(config.baseUrl + 'admin/', adminActionsRouter);
 
-app.use(function(req, res, next) {
+expressApp.use(function(req, res, next) {
 	var time = Date.now() - req.startTime;
-	var memdiff = process.memoryUsage().heapUsed - req.startMem;
-
+	
 	debugPerfLog("Finished action '%s' in %d ms", req.path, time);
-	next();
+
+	if (!res.headersSent) {
+		next();
+	}
 });
 
 /// catch 404 and forwarding to error handler
-app.use(function(req, res, next) {
-	var err = new Error('Not Found');
+expressApp.use(function(req, res, next) {
+	var err = new Error(`Not Found: ${req ? req.url : 'unknown url'}`);
 	err.status = 404;
+
 	next(err);
 });
 
@@ -634,8 +706,12 @@ app.use(function(req, res, next) {
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
-	app.use(function(err, req, res, next) {
+if (expressApp.get("env") === "development" || expressApp.get("env") === "local") {
+	expressApp.use(function(err, req, res, next) {
+		if (err) {
+			utils.logError("3289023yege", err);
+		}
+
 		res.status(err.status || 500);
 		res.render('error', {
 			message: err.message,
@@ -646,7 +722,11 @@ if (app.get('env') === 'development') {
 
 // production error handler
 // no stacktraces leaked to user
-app.use(function(err, req, res, next) {
+expressApp.use(function(err, req, res, next) {
+	if (err) {
+		utils.logError("2309832hcxwgeeew", err);
+	}
+
 	res.status(err.status || 500);
 	res.render('error', {
 		message: err.message,
@@ -654,11 +734,11 @@ app.use(function(err, req, res, next) {
 	});
 });
 
-app.locals.moment = moment;
-app.locals.Decimal = Decimal;
-app.locals.utils = utils;
-app.locals.markdown = src => markdown.render(src);
+expressApp.locals.moment = moment;
+expressApp.locals.Decimal = Decimal;
+expressApp.locals.utils = utils;
+expressApp.locals.markdown = src => markdown.render(src);
 
 
 
-module.exports = app;
+module.exports = expressApp;
