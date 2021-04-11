@@ -40,16 +40,19 @@ const bitcoinCore = require("bitcoin-core");
 const pug = require("pug");
 const momentDurationFormat = require("moment-duration-format");
 const coreApi = require("./app/api/coreApi.js");
+const rpcApi = require("./app/api/rpcApi.js");
 const coins = require("./app/coins.js");
 const request = require("request");
 const qrcode = require("qrcode");
 const addressApi = require("./app/api/addressApi.js");
 const electrumAddressApi = require("./app/api/electrumAddressApi.js");
+const appStats = require("./app/appStats.js");
 const auth = require('./app/auth.js');
 const sso = require('./app/sso.js');
 const markdown = require("markdown-it")();
 const v8 = require("v8");
 const axios = require("axios");
+var compression = require("compression");
 
 require("./app/currencies.js");
 
@@ -70,6 +73,8 @@ const expressApp = express();
 const statTracker = require("./app/statTracker.js");
 
 const statsProcessFunction = (name, stats) => {
+	appStats.trackAppStats(name, stats);
+	
 	if (process.env.STATS_API_URL) {
 		const data = Object.assign({}, stats);
 		data.name = name;
@@ -148,8 +153,10 @@ expressApp.use(session({
 	saveUninitialized: false
 }));
 
+expressApp.use(compression());
+
 expressApp.use(config.baseUrl, express.static(path.join(__dirname, 'public'), {
-	maxAge: 60 * 60 * 1000
+	maxAge: 30 * 24 * 60 * 60 * 1000
 }));
 
 
@@ -250,33 +257,34 @@ function verifyRpcConnection() {
 	if (!global.activeBlockchain) {
 		debugLog(`Verifying RPC connection...`);
 
+		// normally in application code we target coreApi, but here we're trying to
+		// verify the RPC connection so we target rpcApi directly and include
+		// the second parameter "verifyingConnection=true", to bypass a
+		// fail-if-were-not-connected check
+
 		Promise.all([
-			coreApi.getNetworkInfo(),
-			coreApi.getBlockchainInfo(),
-			coreApi.getIndexInfo(),
-		]).then(([ getnetworkinfo, getblockchaininfo, getindexinfo ]) => {
+			rpcApi.getRpcData("getnetworkinfo", true),
+			rpcApi.getRpcData("getblockchaininfo", true),
+		]).then(([ getnetworkinfo, getblockchaininfo ]) => {
 			global.activeBlockchain = getblockchaininfo.chain;
 
 			// we've verified rpc connection, no need to keep trying
 			clearInterval(global.verifyRpcConnectionIntervalId);
 
-			onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo);
+			onRpcConnectionVerified(getnetworkinfo, getblockchaininfo);
+
 		}).catch(function(err) {
 			utils.logError("32ugegdfsde", err);
 		});
 	}
 }
 
-function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo) {
+async function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo) {
 	// localservicenames introduced in 0.19
 	var services = getnetworkinfo.localservicesnames ? ("[" + getnetworkinfo.localservicesnames.join(", ") + "]") : getnetworkinfo.localservices;
 
+	global.rpcConnected = true;
 	global.getnetworkinfo = getnetworkinfo;
-	global.getindexinfo = getindexinfo;
-
-	if (getindexinfo.txindex) {
-		global.txindexAvailable = true;
-	}
 
 	if (getblockchaininfo.pruned) {
 		global.prunedBlockchain = true;
@@ -326,6 +334,7 @@ function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo
 	
 	debugLog(`RPC Connected: version=${getnetworkinfo.version} subversion=${getnetworkinfo.subversion}, parsedVersion(used for RPC versioning)=${global.btcNodeSemver}, protocolversion=${getnetworkinfo.protocolversion}, chain=${getblockchaininfo.chain}, services=${services}`);
 
+	
 	// load historical/fun items for this chain
 	loadHistoricalDataForChain(global.activeBlockchain);
 
@@ -346,6 +355,57 @@ function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo, getindexinfo
 	// 1d / 7d volume
 	refreshNetworkVolumes();
 	setInterval(refreshNetworkVolumes, 30 * 60 * 1000);
+
+
+	assessTxindexAvailability();
+}
+
+async function assessTxindexAvailability() {
+	// Here we try to call getindexinfo to assess availability of txindex
+	// However, getindexinfo RPC is only available in v0.21+, so the call
+	// may return an "unsupported" error. If/when it does, we will fall back
+	// to assessing txindex availability by querying a known txid
+	debugLog("txindex check: trying getindexinfo");
+	global.getindexinfo = await coreApi.getIndexInfo();
+
+	debugLog(`txindex check: getindexinfo=${JSON.stringify(global.getindexinfo)}`);
+
+	if (global.getindexinfo.txindex) {
+		// getindexinfo was available, and txindex is also available...easy street
+		
+		global.txindexAvailable = true;
+
+		debugLog("txindex check: available!");
+
+	} else if (global.getindexinfo.minRpcVersionNeeded) {
+		// here we find out that getindexinfo is unavailable on our node because
+		// we're running pre-v0.21, so we fall back to querying a known txid
+		// to assess txindex availability
+
+		debugLog("txindex check: getindexinfo unavailable, trying txid lookup");
+
+		try {
+			// lookup a known TXID as a test for whether txindex is available
+			let knownTx = await coreApi.getRawTransaction(coinConfig.knownTransactionsByNetwork[global.activeBlockchain]);
+
+			// if we get here without an error being thrown, we know we're able to look up by txid
+			// thus, txindex is available
+			global.txindexAvailable = true;
+
+			debugLog("txindex check: available! (pre-v0.21)");
+
+		} catch (e) {
+			// here we were unable to query by txid, so we believe txindex is unavailable
+			global.txindexAvailable = false;
+
+			debugLog("txindex check: unavailable");
+		}
+	} else {
+		// here getindexinfo is available (i.e. we're on v0.21+), but txindex is NOT available
+		global.txindexAvailable = false;
+
+		debugLog("txindex check: unavailable");
+	}
 }
 
 function refreshUtxoSetSummary() {
@@ -528,7 +588,7 @@ expressApp.continueStartup = function() {
 
 	global.rpcClientNoTimeout = new bitcoinCore(rpcClientNoTimeoutProperties);
 
-	// default values - after we connect via RPC, we update this
+	// default values - after we connect via RPC, we update these
 	global.txindexAvailable = false;
 	global.prunedBlockchain = false;
 	global.pruneHeight = -1;
@@ -666,6 +726,17 @@ expressApp.use(function(req, res, next) {
 
 		req.session.query = null;
 	}
+
+
+	if (!global.rpcConnected) {
+		res.status(500);
+		res.render('error', {
+			errorType: "noRpcConnection"
+		});
+
+		return;
+	}
+	
 
 	// make some var available to all request
 	// ex: req.cheeseStr = "cheese";

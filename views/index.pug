@@ -79,7 +79,12 @@ block content
 
 				include includes/blocks-list.pug
 
-				.text-center.pt-3
+				if (blocks.length % 2 == 1)
+					hr
+				else
+					.mb-2
+
+				.text-center.pt-1
 					a.btn.btn-primary.btn-sm(href="./blocks")
 						i.fas.fa-cubes.me-2
 						| Browse Blocks &raquo;

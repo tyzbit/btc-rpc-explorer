@@ -188,8 +188,8 @@ module.exports = {
 		blockTxPageSize: (slowDeviceMode ? 10 : 20),
 		addressTxPageSize: 10,
 		txMaxInput: (slowDeviceMode ? 3 : 15),
-		browseBlocksPageSize: (process.env.BTCEXP_UI_BLOCKS_PAGE_BLOCK_COUNT || (slowDeviceMode ? 10 : 50)),
-		browseMempoolTransactionsPageSize: (slowDeviceMode ? 10 : 50),
+		browseBlocksPageSize: (process.env.BTCEXP_UI_BLOCKS_PAGE_BLOCK_COUNT || (slowDeviceMode ? 10 : 25)),
+		browseMempoolTransactionsPageSize: (slowDeviceMode ? 10 : 25),
 		addressPage:{
 			txOutputMaxDefaultDisplay:10
 		},
@@ -199,7 +199,7 @@ module.exports = {
 			{name: "Basics", items: [0, 2]},
 			{name: "Mempool", items: [5, 4]},
 			{name: "Analysis", items: [9, 10, 11, 12, 3]},
-			{name: "Technical", items: [6, 7]},
+			{name: "Technical", items: [6, 7, 1]},
 			{name: "Fun", items: [8, 13]},
 		]
 	},
