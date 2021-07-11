@@ -282,7 +282,7 @@ function satoshisPerUnitOfLocalCurrency(localCurrency) {
 
 		var exchangedAmt = parseInt(dec);
 
-		return {amt:addThousandsSeparators(exchangedAmt), unit:`sat/${localCurrencyType.symbol}`}
+		return {amt:addThousandsSeparators(exchangedAmt),amtRaw:exchangedAmt, unit:`sat/${localCurrencyType.symbol}`}
 	}
 
 	return null;
@@ -326,7 +326,8 @@ function formatExchangedCurrency(amount, exchangeType) {
 		return {
 			val: addThousandsSeparators(exchangedAmt),
 			symbol: global.currencyTypes[exchangeType].symbol,
-			unit: exchangeType
+			unit: exchangeType,
+			valRaw: exchangedAmt
 		};
 	} else if (exchangeType == "au") {
 		if (global.exchangeRates != null && global.goldExchangeRates != null) {
@@ -337,7 +338,8 @@ function formatExchangedCurrency(amount, exchangeType) {
 			return {
 				val: addThousandsSeparators(exchangedAmt),
 				unit: "oz",
-				symbol: "AU"
+				symbol: "AU",
+				valRaw: exchangedAmt
 			};
 		}
 	}
@@ -353,6 +355,10 @@ function seededRandom(seed) {
 function seededRandomIntBetween(seed, min, max) {
 	var rand = seededRandom(seed);
 	return (min + (max - min) * rand);
+}
+
+function randomInt(min, max) {
+	return min + Math.floor(Math.random() * max);
 }
 
 function ellipsize(str, length, ending="…") {
@@ -532,6 +538,11 @@ function getBlockTotalFeesFromCoinbaseTxAndBlockHeight(coinbaseTx, blockHeight) 
 
 function estimatedSupply(height) {
 	var checkpointData = coinConfig.coinSupplyCheckpointsByNetwork[global.activeBlockchain];
+	
+	if (!checkpointData) {
+		return new Decimal(0);
+	}
+
 	var checkpointHeight = checkpointData[0];
 	var checkpointSupply = checkpointData[1];
 
@@ -950,6 +961,10 @@ function objectProperties(obj) {
 	return props;
 }
 
+function objHasProperty(obj, name) {
+	return Object.prototype.hasOwnProperty.call(obj, name);
+}
+
 function iterateProperties(obj, action) {
 	for (const [key, value] of Object.entries(obj)) {
 		action([key, value]);
@@ -972,6 +987,7 @@ module.exports = {
 	formatCurrencyAmountInSmallestUnits: formatCurrencyAmountInSmallestUnits,
 	seededRandom: seededRandom,
 	seededRandomIntBetween: seededRandomIntBetween,
+	randomInt: randomInt,
 	logMemoryUsage: logMemoryUsage,
 	getMinerFromCoinbaseTx: getMinerFromCoinbaseTx,
 	getBlockTotalFeesFromCoinbaseTxAndBlockHeight: getBlockTotalFeesFromCoinbaseTxAndBlockHeight,
@@ -1000,5 +1016,6 @@ module.exports = {
 	timePromise: timePromise,
 	startTimeNanos: startTimeNanos,
 	dtMillis: dtMillis,
-	objectProperties: objectProperties
+	objectProperties: objectProperties,
+	objHasProperty: objHasProperty
 };

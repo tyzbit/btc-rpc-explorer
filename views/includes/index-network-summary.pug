@@ -38,7 +38,7 @@ if (exchangeRates)
 
 				// ["154.9",{"val":1000000000,"name":"giga","abbreviation":"G","exponent":"9"}]
 
-			if (global.goldExchangeRates["usd"] && global.exchangeRates["usd"])
+			if (global.goldExchangeRates && global.goldExchangeRates["usd"] && global.exchangeRates && global.exchangeRates["usd"])
 				// usd is the only bridge for our data sources
 				+summaryItem("Gold Rate", `Source: ${new URL(coinConfig.goldExchangeRateData.jsonUrl).hostname}`)
 					- var formatData = utils.formatExchangedCurrency(1.0, "au");
@@ -72,7 +72,7 @@ if (exchangeRates)
 				i.fas.fa-server.text-muted
 
 +contentSection
-	+summaryRow(1 + (hashrate7d ? 1 : 0) + (chainTxStats[7 * targetBlocksPerDay] ? 1 : 0) + (difficultyAdjustmentData ? 1 : 0))
+	+summaryRow(1 + (hashrate7d ? 1 : 0) + (chainTxStats && chainTxStats[7 * targetBlocksPerDay] ? 1 : 0) + (difficultyAdjustmentData ? 1 : 0))
 		if (hashrate7d)
 			+summaryItem("7d Hashrate", "The average hashrate of the global mining network over the last 7 days. A comparison to the 30-day average is included to help gauge the rate of change.")
 				- var hashrate7dayData = utils.formatLargeNumber(hashrate7d, 1);
@@ -96,16 +96,24 @@ if (exchangeRates)
 
 						| )
 
-		if (chainTxStats[7 * targetBlocksPerDay])
+		if (chainTxStats && chainTxStats[7 * targetBlocksPerDay])
 			+summaryItem("7d Transactions", "The total number of transactions that have been confirmed in the blockchain over the last 7 days.")
 				| #{chainTxStats[7 * targetBlocksPerDay].window_tx_count.toLocaleString()}
 
 		if (difficultyAdjustmentData)
 			- var desc = `Estimate for the difficulty adjustment that will occur in ${difficultyAdjustmentData.blocksLeft.toLocaleString()} block${difficultyAdjustmentData.blocksLeft == 1 ? "" : "s"} (${difficultyAdjustmentData.timeLeftStr}). This is calculated using the average block time during the current difficulty epoch (currently, the last ${difficultyAdjustmentData.calculationBlockCount.toLocaleString()} block${difficultyAdjustmentData.calculationBlockCount == 1 ? "" : "s"}). Note: This estimate becomes more reliable as the difficulty epoch nears its end.`;
 			
+			if (false)
+				pre
+					code.json #{JSON.stringify(difficultyAdjustmentData, null, 4)}
+
 			+summaryItem("Difficulty Δ", difficultyAdjustmentData.estimateAvailable ? desc : null)
 				if (difficultyAdjustmentData.estimateAvailable)
-					span.me-2(class=(difficultyAdjustmentData.sign == "+" ? "text-success" : "text-danger")) #{difficultyAdjustmentData.sign}#{difficultyAdjustmentData.delta.toDP(2)}
+					span.me-2(class=(difficultyAdjustmentData.delta >= 0 ? "text-success" : "text-danger"))
+						if (difficultyAdjustmentData.sign == "+")
+							| +
+
+						| #{difficultyAdjustmentData.delta.toDP(2)}
 						small.ms-1 %
 					small.text-muted
 						| (

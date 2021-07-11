@@ -134,10 +134,11 @@ block endOfBody
 				datasets.push({
 					label: names[i],
 					data: datas[i],
-					borderWidth: 2,
+					borderWidth: 1,
 					borderColor: colors[i],
 					backgroundColor: 'rgba(0, 0, 0, 0)',
-					pointRadius: 1
+					pointRadius: 1,
+					lineTension: 0
 				});
 
 				yaxes.push({
@@ -145,9 +146,9 @@ block endOfBody
 						display: false,
 						//labelString: names[i]
 					},
-					gridLines: {
+					grid: {
 						color: gridLineColor
-					}
+					},
 				});
 			}
 
@@ -174,7 +175,7 @@ block endOfBody
 							display: (datasets.length > 1)
 						},
 						scales: {
-							xAxes: [{
+							x: {
 								type: 'time',
 								position: 'bottom',
 								time: {
@@ -184,20 +185,20 @@ block endOfBody
 									display: true,
 									labelString: 'Time'
 								},
-								gridLines: {
+								grid: {
 									color: gridLineColor
-								}
-							}],
-							yAxes: [{
+								},
+							},
+							y: {
 								type: 'linear',
 								position: 'left',
 								scaleLabel: {
 									display: false,
 								},
-								gridLines: {
+								grid: {
 									color: gridLineColor
-								}
-							}],
+								},
+							},
 						}
 					}
 				});

@@ -10,13 +10,23 @@ mixin pageTitle(text, subtext, copyableSubtext=false)
 	//hr.mb-3
 
 
-mixin sectionTitle(text, toggle=false, toggleUniqueClass, toggleUserSettingName, toggleOpen)
+mixin sectionTitleBlock
+	h3.h5.mb-1.fw-light
+		block
+
+			
+mixin sectionTitle(text, toggle=false, toggleUniqueClass, toggleUserSettingName, toggleOpen, tooltipText)
 	if (false)
 		pre
 			code.json #{JSON.stringify(session.userSettings)}
 
 	h3.h5.mb-1.fw-light(class=(toggle && !toggleOpen ? "mb-section" : false), class=(!toggle || toggleOpen ? "d-block" : "d-none"))
-		| #{text}
+		if (tooltipText)
+			span.border-dotted(title=tooltipText, data-bs-toggle="tooltip")
+				| #{text}
+
+		else
+			| #{text}
 
 		if (toggle)
 			small(title=`Toggle ${text}`, data-bs-toggle="tooltip")
@@ -145,12 +155,16 @@ mixin txList(visibleTxs, txCount, limit, offset, inputsByTxid, options)
 									+valueDisplay(options.addrLossesByTxid[tx.txid])
 
 							if (options.showDates)
+								- var utcMoment = moment.utc(new Date(parseInt(tx.time) * 1000));
+								- var titleStr = `${utcMoment.format("Y-MM-DD HH:mm:ss")} utc`;
+
 								+darkBadge
 									i.far.fa-clock.me-1
 
 									if (tx.time)
-										+timeAgo(tx.time, true)
-										span.ms-1 ago
+										span(title=titleStr, data-bs-toggle="tooltip")
+											+timeAgo(tx.time, true)
+											span.ms-1 ago
 
 									else
 										| unconfirmed
@@ -336,7 +350,7 @@ mixin confirmations(confirmations, abbreviated=true)
 			i.fas.fa-check.ms-1
 
 
-mixin timestamp(timestamp, includeAgo=true)
+mixin timestamp(timestamp, includeAgo=true, formatString)
 	- var utcMoment = moment.utc(new Date(parseInt(timestamp) * 1000));
 
 	- var yearStr = utcMoment.format("Y");
@@ -347,7 +361,13 @@ mixin timestamp(timestamp, includeAgo=true)
 
 	- var titleStr = `${utcMoment.format("Y-MM-DD HH:mm:ss")} utc`;
 
-	if (dateStr == nowDateStr)
+	if (formatString)
+		span.border-dotted(title=titleStr, data-bs-toggle="tooltip")
+			| #{utcMoment.format(formatString)}
+			if (["H", "m", "s"].some(str => formatString.includes(str)))
+				small.text-muted.ms-1 utc
+
+	else if (dateStr == nowDateStr)
 		span.border-dotted(title=titleStr, data-bs-toggle="tooltip")
 			| #{utcMoment.format("HH:mm")}
 			small.text-muted.ms-1 utc
@@ -478,6 +498,18 @@ mixin warningAlert
 		i.d-none.d-md-inline.fas.fa-exclamation-triangle.fa-lg.d-inline-block(style="position: absolute; top: 0; left: 0; width: 36px; margin-left: 0.4rem; margin-top: 1.3rem;")
 
 		block
+
+
+mixin numWithMutedDecimals(numString)
+	if (numString.indexOf(".") >= 0)
+		- var n = numString.substring(0, numString.indexOf("."));
+		- var dec = numString.substring(numString.indexOf("."));
+
+		span #{n}
+		small.text-muted #{dec}
+
+	else
+		span #{numString}
 				
 
 mixin blockRangeFilters
@@ -561,13 +593,13 @@ mixin pagination(limit, offset, sort, itemCount, baseUrl, justification="start",
 
 
 mixin graphPageScriptSetup
-	script(src="./js/chart.bundle.min.js", integrity="sha384-qgOtiGNaHh9fVWUnRjyHlV39rfbDcvPPkEzL1RHvsHKbuqUqM6uybNuVnghY2z4/")
+	script(src="./js/chart.min.js", integrity="sha384-GjRWJoCOQprcDc7Q66qkuxVD04BCqkLyMxPifcy0xRk4JjK+KHgjYw1tphyoDlkC")
 	
 	if (userSettings.uiTheme && userSettings.uiTheme == "dark")
 		script.
-			Chart.defaults.global.defaultFontColor='white';
+			Chart.defaults.color='white';
 			var gridLineColor = "#1a4280";
 	else
 		script.
-			Chart.defaults.global.defaultFontColor='black';
+			Chart.defaults.color='black';
 			var gridLineColor = "#dddddd";

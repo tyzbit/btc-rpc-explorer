@@ -5,17 +5,33 @@ html(lang="en")
 		base(href=config.baseUrl)
 		meta(name="csrf-token", content=csrfToken)
 		meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, shrink-to-fit=no")
+
+		meta(name="description" content="Open-source, easy-to-use, educational Bitcoin explorer whose only dependency is your Bitcoin Core node.")
 		
 		if (!homepage)
 			link(rel="stylesheet", href="./style/highlight.min.css", integrity="sha384-s4RLYRjGGbVqKOyMGGwfxUTMOO6D7r2eom7hWZQ6BjK2Df4ZyfzLXEkonSm0KLIQ")
 
 
 		if (userSettings.uiTheme == "light")
-			link(rel="stylesheet", href="./style/light.css", integrity="sha384-g29RQdd+TbXjjBSuwxb0PuDyrEcBhwSZ7JRL21EgNUQsP7XAXGvjiP1EhgHnL/Hj")
+			link(rel="stylesheet", href="./style/light.css", integrity="sha384-T3HxWj4Mh3XfsGHkCTHtHKb0ZCpGqxfFgNrA8Es6XXaq9ycIQfwon2OZh5HWh0Dd")
 				
 		else
-			link(rel="stylesheet", href="./style/dark.css", integrity="sha384-5meIojgtHsKcN1/vHzmKGr1HHALm97tDcZe+iHvsOAN4qo9rlVBfpzhepzFwv798")
+			link(rel="stylesheet", href="./style/dark.css", integrity="sha384-Pd6pPOjlRYdMWthDLGOivIiwQzC2sPcm3oVwzTbXtytknGxPFiWdEyg/x5VwYKxI")
 		
+
+		link(id="canonical" rel="canonical" href="https://bitcoinexplorer.org")
+
+		meta(property="og:title" content=(metaTitle != undefined ? metaTitle : "BitcoinExplorer.org - Open-Source Bitcoin Explorer"))
+		meta(property="og:description" content=(metaDesc != undefined ? metaDesc : "Open-source, easy-to-use, educational Bitcoin explorer whose only dependency is your Bitcoin Core node."))
+		meta(property="og:image" content="https://bitcoinexplorer.org/img/preview.png")
+
+		meta(property="twitter:card" content="summary_large_image")
+		meta(property="twitter:site" content="@BitcoinExplorer")
+		meta(property="twitter:creator" content="@BitcoinExplorer")
+		meta(property="twitter:title" content=(metaTitle != undefined ? metaTitle : "BitcoinExplorer.org"))
+		meta(property="twitter:description" content=(metaDesc != undefined ? metaDesc : "Open-source, easy-to-use, educational Bitcoin explorer whose only dependency is your Bitcoin Core node."))
+		meta(property="twitter:image:src" content=(metaImgUrl != undefined ? metaImgUrl : "https://bitcoinexplorer.org/img/preview.png"))
+		meta(property="twitter:domain" content="bitcoinexplorer.org")
 
 		link(rel="apple-touch-icon", sizes="180x180", href="./img/logo/apple-touch-icon.png")
 		link(rel="icon", type="image/png", sizes="32x32", href="./img/logo/favicon-32x32.png")
@@ -234,11 +250,33 @@ html(lang="en")
 									a.text-white.mb-1.me-3(href="https://github.com/janoside/btc-rpc-explorer", title="View source code on Github", data-bs-toggle="tooltip")
 										i.fab.fa-github
 
-								a.text-danger.mb-1.me-3(href="https://explorer-support.btc21.org", target="_blank", title="Support this project with a donation", data-bs-toggle="tooltip")
+								a.text-danger.mb-1.me-3(href="https://donate.bitcoinexplorer.org", target="_blank", title="Support this project with a donation", data-bs-toggle="tooltip")
 									i.fas.fa-heart.text-danger
 
 								a.text-white.mb-1(href="https://twitter.com/BitcoinExplorer", target="_blank", title="Follow @BitcoinExplorer on Twitter", data-bs-toggle="tooltip")
 									i.fab.fa-twitter.text-twitter
+
+
+				
+				if (footerQuote && !crawlerBot)
+					.text-center.mt-3.mb-4
+						span.fs-4.font-serif "
+						span.fs-5.font-serif #{footerQuote.text}
+						span.fs-4.font-serif "
+						br
+						.ms-8
+							if (footerQuote.speaker.indexOf("https://twitter.com") >= 0)
+								- var account = footerQuote.speaker.substring("https://twitter.com/".length);
+								| — 
+								a.fs-5(href=footerQuote.speaker, target="_blank") @#{account}
+
+							else
+								span.fs-5 — #{footerQuote.speaker}
+
+							if (footerQuote.url)
+								small.text-muted.ms-2 (
+									a(href=footerQuote.url) link
+									| )
 
 
 				hr
@@ -288,7 +326,13 @@ html(lang="en")
 									if (coinConfig.demoSiteUrlsByNetwork && coinConfig.demoSiteUrlsByNetwork.main)
 										a.footer-link(href=coinConfig.demoSiteUrlsByNetwork.main) #{coinConfig.demoSiteUrlsByNetwork.main}
 									else
-										a.footer-link(href="https://explorer.btc21.org") https://explorer.btc21.org
+										a.footer-link(href="https://bitcoinexplorer.org") https://bitcoinexplorer.org
+
+									br
+
+									a.footer-link(href="http://btcexpz7xlwrqknqw6p3bok6shf73qtkd6zxct4x4qta2ktvh7ntprad.onion", title="Tor v3 Hidden Service", data-bs-toggle="tooltip") btcexp….onion
+									span.ms-1 (tor v3)
+									+copyTextButton("http://btcexpz7xlwrqknqw6p3bok6shf73qtkd6zxct4x4qta2ktvh7ntprad.onion")
 									
 									div.mt-2
 										- var demoSites = ["main", "test", "signet"];
@@ -304,10 +348,7 @@ html(lang="en")
 		script(src="./js/bootstrap.bundle.min.js", integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf")
 		script(defer, src="./js/fontawesome.min.js", integrity="sha384-haqrlim99xjfMxRP6EWtafs0sB1WKcMdynwZleuUSwJR0mDeRYbhtY+KPMr+JL6f")
 
-		if (!homepage)
-			script(src="./js/highlight.pack.js", integrity="sha384-OGoFdvlhYqw3L+BFpHxdz5136RO9tUlt7OZ2qQZ0N6Z9Qqx0rCQBsg9ko7X4vC64")
-
-		script(src="./js/site.js", integrity="sha384-lRJsCA6PqJsSsdIfU9CtmBxuoCI2nZMQSphToDThRdHsK/unylcL0y41P/kRd49S")
+		script(src="./js/site.js", integrity="sha384-TXXIdJrESOEzST0SpP/wCosO/fLqaSAHzYEI1E8FmWaAinjJavL/3YuAvoC8+pCa")
 		
 		script.
 			document.addEventListener("DOMContentLoaded", function(event) {
@@ -322,9 +363,17 @@ html(lang="en")
 				var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
 					return new bootstrap.Popover(popoverTriggerEl);
 				});
-
-				hljs.highlightAll();
 			});
+
+		if (!homepage)
+			script(src="./js/highlight.pack.js", integrity="sha384-OGoFdvlhYqw3L+BFpHxdz5136RO9tUlt7OZ2qQZ0N6Z9Qqx0rCQBsg9ko7X4vC64")
+			script.
+				document.addEventListener("DOMContentLoaded", function(event) {
+					hljs.highlightAll();
+				});
+
+		if (process.env.BTCEXP_PLAUSIBLE_ANALYTICS_DOMAIN && process.env.BTCEXP_PLAUSIBLE_ANALYTICS_SCRIPT_URL)
+			script(async defer data-domain=process.env.BTCEXP_PLAUSIBLE_ANALYTICS_DOMAIN src=process.env.BTCEXP_PLAUSIBLE_ANALYTICS_SCRIPT_URL)
 
 			
 

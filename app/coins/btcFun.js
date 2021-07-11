@@ -36,7 +36,7 @@ module.exports = {
 			chain: "main",
 			address:"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP",
 			summary:"SHA1 collision bounty",
-			alertBodyHtml:"On September 13, 2013 a P2SH address was setup which allowed anyone who found a SHA1 collision to construct a transaction that could spend from this address.",
+			alertBodyHtml:"This address corresponds to a Bitcoin Script (<span class='font-data'>6e879169a77ca787</span>) that allows anyone who can demonstrate a SHA1 collision to spend from it. On September 13, 2013 this address was funded as a SHA1-collision bounty and it continued to accumulate 'bounty donations' for over 2 years when, on February 23, 2017 a total of 1.62 BTC were spent from this address in <a href='./tx/8d31992805518fd62daa3bdd2a5c4fd2cd3054c9b3dca1d78055e9528cff6adc'>8d31992805...</a>.",
 			referenceUrl:"https://bitcointalk.org/index.php?topic=293382.0"
 		},
 		{
@@ -45,7 +45,7 @@ module.exports = {
 			chain: "main",
 			address:"35Snmmy3uhaer2gTboc81ayCip4m9DT4ko",
 			summary:"SHA256 collision bounty",
-			alertBodyHtml:"On September 13, 2013 a P2SH address was setup which allowed anyone who found a SHA256 collision to construct a transaction that could spend from this address.",
+			alertBodyHtml:"This address corresponds to a Bitcoin Script (<span class='font-data'>6e879169a87ca887</span>) that allows anyone who can demonstrate a SHA256 collision to spend from it. On September 13, 2013 this address was funded as a SHA256-collision bounty. It has continued to accumulate 'bounty donations' for 7+ years and, as of this writing (April 2021), the bounty remains uncollected.",
 			referenceUrl:"https://bitcointalk.org/index.php?topic=293382.0"
 		},
 		{
@@ -54,7 +54,7 @@ module.exports = {
 			chain: "main",
 			address:"3KyiQEGqqdb4nqfhUzGKN6KPhXmQsLNpay",
 			summary:"RIPEMD160 collision bounty",
-			alertBodyHtml:"On September 13, 2013 a P2SH address was setup which allowed anyone who found a RIPEMD160 collision to construct a transaction that could spend from this address.",
+			alertBodyHtml:"This address corresponds to a Bitcoin Script (<span class='font-data'>6e879169a67ca687</span>) that allows anyone who can demonstrate a RIPEMD160 collision to spend from it. On September 13, 2013 this address was funded as a RIPEMD160-collision bounty. It has continued to accumulate 'bounty donations' for 7+ years and, as of this writing (April 2021), the bounty remains uncollected.",
 			referenceUrl:"https://bitcointalk.org/index.php?topic=293382.0"
 		},
 		{
@@ -63,7 +63,7 @@ module.exports = {
 			chain: "main",
 			address:"39VXyuoc6SXYKp9TcAhoiN1mb4ns6z3Yu6",
 			summary:"RIPEMD160(SHA256()) collision bounty",
-			alertBodyHtml:"On September 13, 2013 a P2SH address was setup which allowed anyone who found a RIPEMD160(SHA256()) collision to construct a transaction that could spend from this address.",
+			alertBodyHtml:"This address corresponds to a Bitcoin Script (<span class='font-data'>6e879169a97ca987</span>) that allows anyone who can demonstrate a RIPEMD160(SHA256()) collision to spend from it. On September 13, 2013 this address was funded as a RIPEMD160(SHA256())-collision bounty. It has continued to accumulate 'bounty donations' for 7+ years and, as of this writing (April 2021), the bounty remains uncollected.",
 			referenceUrl:"https://bitcointalk.org/index.php?topic=293382.0"
 		},
 		{
@@ -72,7 +72,7 @@ module.exports = {
 			chain: "main",
 			address:"3DUQQvz4t57Jy7jxE86kyFcNpKtURNf1VW",
 			summary:"SHA256(SHA256()) collision bounty",
-			alertBodyHtml:"On September 13, 2013 a P2SH address was setup which allowed anyone who found a SHA256(SHA256()) collision to construct a transaction that could spend from this address.",
+			alertBodyHtml:"This address corresponds to a Bitcoin Script (<span class='font-data'>6e879169aa7caa87</span>) that allows anyone who can demonstrate a SHA256(SHA256()) collision to spend from it. On September 13, 2013 this address was funded as a SHA256(SHA256())-collision bounty. It has continued to accumulate 'bounty donations' for 7+ years and, as of this writing (April 2021), the bounty remains uncollected.",
 			referenceUrl:"https://bitcointalk.org/index.php?topic=293382.0"
 		},
 		{
@@ -155,7 +155,7 @@ module.exports = {
 			txid: "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
 			blockHeight: 57043,
 			summary: "The 'Bitcoin Pizza' transaction.",
-			alertBodyHtml: "This is the famous 'Bitcoin Pizza' transaction, one of the earliest 'real-world' transactions, in which 10,000 BTC was paid for 2 large pizzas worth ~41 USD (at an effective exchange rate of ~$0.04/BTC).",
+			alertBodyHtml: "This is the famous 'Bitcoin Pizza' transaction, one of the earliest 'real-world' transactions, in which 10,000 BTC was paid for 2 large pizzas worth ~41 USD (at an effective exchange rate of ~$0.004/BTC).",
 			referenceUrl: "https://bitcointalk.org/index.php?topic=137.0"
 		},
 		{
@@ -164,7 +164,8 @@ module.exports = {
 			chain: "main",
 			txid: "5d80a29be1609db91658b401f85921a86ab4755969729b65257651bb9fd2c10d",
 			blockHeight: 124724,
-			summary: "Destroyed bitcoin.",
+			summary: "Midnightmagic's 'Missing Satoshi' (provably lost/destroyed bitcoin)",
+			alertBodyHtml: "The miner of block <a href='./block-height/124724'>124,724</a> (<a href='https://bitcointalk.org/index.php?action=profile;u=2759'>midnightmagic on BitcoinTalk</a>) deliberately underpaid themselves 1 satoshi from the block subsidy (in addition to deliberately ignoring the fees for transactions included in that block). The 'missing satoshi' (to use midnight magic's words), was a tribute to Satoshi's disappearance.",
 			referenceUrl: "https://bitcointalk.org/index.php?topic=7253.msg184414#msg184414",
 			referenceUrl2: "https://www.reddit.com/r/Bitcoin/comments/7mhoks/til_in_2011_a_user_running_a_modified_mining/"
 		},
@@ -330,6 +331,16 @@ module.exports = {
 			summary: "In retrospect, it was inevitable",
 			alertBodyHtml: "Shortly before a $1B+ USD Tesla treasury investment into Bitcoin was announced, Elon Musk updated his Twitter profile to just say '#Bitcoin' and cryptically tweeted 'It was inevitable'. Miner 'yhc5t3p' with F2Pool immortalized the tweet soon after.",
 			referenceUrl: "https://twitter.com/elonmusk/status/1355068728128516101"
+		},
+		{
+			type: "blockheight",
+			date: "2021-04-14",
+			chain: "main",
+			blockHeight: 679187,
+			blockHash: "000000000000000000003b1e8108e0d85ad0f698ded94360b27e0ca766682b4f",
+			summary: "NYTimes 10/Mar/2021 House Gives Final Approval to Biden's $1.9T Pandemic Relief",
+			alertBodyHtml: "In celebration of their public listing and in homage to Satoshi's <a href='./block-height/0'>Genesis Block</a>, @Coinbase asked F2Pool to embed a message in the blockchain: 'NYTimes 10/Mar/2021 House Gives Final Approval to Biden's $1.9T Pandemic Relief'.",
+			referenceUrl: "https://twitter.com/coinbase/status/1382338154053607429?s=20"
 		},
 
 

@@ -5,17 +5,17 @@
 [![npm version][npm-ver-img]][npm-ver-url] [![NPM downloads][npm-dl-img]][npm-dl-url]
 
 
-Simple, database-free Bitcoin blockchain explorer, via RPC to [Bitcoin Core](https://github.com/bitcoin/bitcoin).
+Self-Hosted Bitcoin explorer for anyone running [Bitcoin Core](https://github.com/bitcoin/bitcoin).
 
-This is a simple, self-hosted explorer for the Bitcoin blockchain, driven by RPC calls to your own [Bitcoin](https://github.com/bitcoin/bitcoin) node. It is easy to run and can be connected to other tools (like [ElectrumX](https://github.com/spesmilo/electrumx)) to achieve a full-featured explorer.
+This is a self-hosted explorer for the Bitcoin blockchain, driven by RPC calls to your own [Bitcoin](https://github.com/bitcoin/bitcoin) node. It is easy to run and can be connected to other tools (like Electrum servers) to achieve a full-featured explorer.
 
-Whatever reasons one may have for running a full node (trustlessness, technical curiosity, supporting the network, etc) it's helpful to appreciate the "fullness" of your node. With this explorer, you can explore not just the blockchain database, but also explore the functional capabilities of your own node.
+Whatever reasons you may have for running a full node (trustlessness, technical curiosity, supporting the network, etc) it's valuable to appreciate the *fullness* of your node. With this explorer, you can explore not just the blockchain database, but also explore all of the functional capabilities of your own node.
 
 Live demos available at:
 
-* Mainnet - [https://explorer.btc21.org](https://explorer.btc21.org)
-* Testnet - [https://testnet.btc21.org](https://testnet.btc21.org)
-* Signet - [https://signet.btc21.org](https://signet.btc21.org)
+* Mainnet - [BitcoinExplorer.org](https://bitcoinexplorer.org)
+* Testnet - [testnet.BitcoinExplorer.org](https://testnet.bitcoinexplorer.org)
+* Signet - [signet.BitcoinExplorer.org](https://signet.bitcoinexplorer.org)
 
 
 # Features
@@ -23,6 +23,7 @@ Live demos available at:
 * Network Summary dashboard
 * View details of blocks, transactions, and addresses
 * Analysis tools for viewing stats on blocks, transactions, and miner activity
+* JSON REST API
 * See raw JSON content from bitcoind used to generate most pages
 * Search by transaction ID, block hash/height, and address
 * Optional transaction history for addresses by querying from Electrum-protocol servers (e.g. Electrs, ElectrumX), blockchain.com, blockchair.com, or blockcypher.com
@@ -39,9 +40,9 @@ See [CHANGELOG.md](/CHANGELOG.md).
 
 ## Prerequisites
 
-1. Install and run a full, archiving node - [instructions](https://bitcoin.org/en/full-node). Ensure that your bitcoin node has its RPC server enabled (`server=1`).
-2. Synchronize your node with the Bitcoin network (you *can* use this tool while your node is still sychronizing, but some pages may fail).
-3. Install a "recent" version of Node.js (8+ recommended).
+1. Install `Bitcoin Core` - [instructions](https://bitcoin.org/en/full-node). Ensure that `Bitcoin Core`'s' RPC server is enabled (`server=1`).
+2. Allow `Bitcoin Core` to synchronize with the Bitcoin network (you *can* use this tool while sychronizing, but some pages may fail).
+3. Install Node.js (14+ recommended).
 
 ### Note about pruning and indexing configurations
 
@@ -101,11 +102,15 @@ btc-rpc-explorer --port 8080 --bitcoind-port 18443 --bitcoind-cookie ~/.bitcoin/
 
 #### Demo site settings
 
-To match the features visible on the demo site at [https://explorer.btc21.org](https://explorer.btc21.org) you'll need to set the following non-default configuration values:
+To match the features visible on the demo site at [BitcoinExplorer.org](https://bitcoinexplorer.org) you'll need to set the following non-default configuration values:
 
     BTCEXP_DEMO=true 		# enables some demo/informational aspects of the site
     BTCEXP_NO_RATES=false		# enables querying of exchange rate data
     BTCEXP_SLOW_DEVICE_MODE=false	# enables resource-intensive tasks (UTXO set query, 24hr volume querying) that are inappropriate for "slow" devices
+    BTCEXP_ADDRESS_API=electrum 	# use electrum-protocol servers for address lookups
+    BTCEXP_ELECTRUM_SERVERS=tcp://your-electrum-protocol-server-host:50001		# address(es) for my electrum-protocol server(s)
+    BTCEXP_IPSTACK_APIKEY=your-api-key		# enable peer ip geo-location
+    BTCEXP_MAPBOX_APIKEY=your-api-key		# enable map of peer locations
 
 #### SSO authentication
 
@@ -114,9 +119,9 @@ To enable it, make sure `BTCEXP_BASIC_AUTH_PASSWORD` is **not** set and set `BTC
 Then to access btc-rpc-explorer, your SSO provider needs to read the token from this file and set it in URL parameter `token`.
 For security reasons the token changes with each login, so the SSO provider needs to read it each time!
 
-After successfull access with the token a cookie is used for authentication, so you don't have to worry about it anymore.
+After successful access with the token, a cookie is set for authentication, so you don't need to worry about it anymore.
 To improve user experience you can set `BTCEXP_SSO_LOGIN_REDIRECT_URL` to the URL of your SSO provider.
-This causes the users to be redirected to login page if not logged in.
+This will cause users to be redirected to your login page if needed.
 
 ## Run via Docker
 
@@ -133,7 +138,7 @@ See [instructions here](docs/nginx-reverse-proxy.md) for using nginx+certbot (le
 
 If you get value from this project, please consider supporting my continued work with a donation. Any and all donations are truly appreciated.
 
-* [https://explorer-support.btc21.org](https://explorer-support.btc21.org)
+* [https://donate.bitcoinexplorer.org](https://donate.bitcoinexplorer.org)
 
 
 [npm-ver-img]: https://img.shields.io/npm/v/btc-rpc-explorer.svg?style=flat

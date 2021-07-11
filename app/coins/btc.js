@@ -80,9 +80,9 @@ module.exports = {
 		"signet":"Signet Explorer",
 	},
 	demoSiteUrlsByNetwork: {
-		"main": "https://explorer.btc21.org",
-		"test": "https://testnet.btc21.org",
-		"signet": "https://signet.btc21.org",
+		"main": "https://bitcoinexplorer.org",
+		"test": "https://testnet.bitcoinexplorer.org",
+		"signet": "https://signet.bitcoinexplorer.org",
 	},
 	knownTransactionsByNetwork: {
 		main: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
@@ -92,10 +92,13 @@ module.exports = {
 	miningPoolsConfigUrls:[
 		"https://raw.githubusercontent.com/btc21/Bitcoin-Known-Miners/master/miners.json",
 		"https://raw.githubusercontent.com/btccom/Blockchain-Known-Pools/master/pools.json",
-		"https://raw.githubusercontent.com/blockchain/Blockchain-Known-Pools/master/pools.json"
+		"https://raw.githubusercontent.com/blockchain/Blockchain-Known-Pools/master/pools.json",
+		"https://raw.githubusercontent.com/0xB10C/known-mining-pools/master/pools.json"
 	],
 	maxBlockWeight: 4000000,
 	maxBlockSize: 1000000,
+	minTxBytes: 166, // ref: https://en.bitcoin.it/wiki/Maximum_transaction_rate
+	minTxWeight: 166 * 4, // hack
 	difficultyAdjustmentBlockCount: 2016,
 	maxSupplyByNetwork: {
 		"main": new Decimal(20999817.31308491), // ref: https://bitcoin.stackexchange.com/a/38998
@@ -122,7 +125,8 @@ module.exports = {
 	coinSupplyCheckpointsByNetwork: {
 		"main": [ 675046, new Decimal(18656332.38) ],
 		"test": [ 1940614, new Decimal(20963051.112) ],
-		"signet": [ 29472, new Decimal(1473600) ]
+		"signet": [ 29472, new Decimal(1473600) ],
+		"regtest": [ 0, new Decimal(0) ]
 	},
 	
 	genesisBlockHashesByNetwork:{
