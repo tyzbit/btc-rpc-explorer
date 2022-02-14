@@ -1,21 +1,24 @@
 # BTC RPC Explorer
 
-![homepage](./public/img/screenshots/homepage-v3.png)
+## Self-Hosted Bitcoin explorer for everyone running [Bitcoin Core](https://github.com/bitcoin/bitcoin).
 
-[![npm version][npm-ver-img]][npm-ver-url] [![NPM downloads][npm-dl-img]][npm-dl-url]
+[![npm version][npm-ver-img]][npm-ver-url] [![NPM downloads][npm-dl-alltime-img]][npm-dl-url]
 
 
-Self-Hosted Bitcoin explorer for anyone running [Bitcoin Core](https://github.com/bitcoin/bitcoin).
+---
+
+
+![homepage](./public/img/screenshots/homepage.png)
+
+
 
 This is a self-hosted explorer for the Bitcoin blockchain, driven by RPC calls to your own [Bitcoin](https://github.com/bitcoin/bitcoin) node. It is easy to run and can be connected to other tools (like Electrum servers) to achieve a full-featured explorer.
 
 Whatever reasons you may have for running a full node (trustlessness, technical curiosity, supporting the network, etc) it's valuable to appreciate the *fullness* of your node. With this explorer, you can explore not just the blockchain database, but also explore all of the functional capabilities of your own node.
 
-Live demos available at:
+Live demos:
 
-* Mainnet - [BitcoinExplorer.org](https://bitcoinexplorer.org)
-* Testnet - [testnet.BitcoinExplorer.org](https://testnet.bitcoinexplorer.org)
-* Signet - [signet.BitcoinExplorer.org](https://signet.bitcoinexplorer.org)
+* [BitcoinExplorer.org](https://bitcoinexplorer.org) / [testnet](https://testnet.bitcoinexplorer.org) / [signet](https://signet.bitcoinexplorer.org)
 
 
 # Features
@@ -76,7 +79,18 @@ btc-rpc-explorer
 4. `npm start`
 
 
-Using either method (`npm install` or run from source), after startup open [http://127.0.0.1:3002/](http://127.0.0.1:3002/)
+#### Install via AUR Arch Linux:
+
+###### Note: The below AUR package was created and is maintained by [@dougEfresh](https://github.com/dougEfresh). The details and history of the package can be seen [here](https://aur.archlinux.org/packages/btc-rpc-explorer/).
+
+1. `git clone https://aur.archlinux.org/btc-rpc-explorer.git`
+2. `cd btc-rpc-explorer`
+3. `makepkg -csi`
+4. `systemctl enable --now btc-rpc-explorer`
+
+
+
+After a default installation+startup using any of the above methods, the app can be viewed at [http://127.0.0.1:3002/](http://127.0.0.1:3002/)
 
 
 ## Configuration
@@ -136,13 +150,24 @@ See [instructions here](docs/nginx-reverse-proxy.md) for using nginx+certbot (le
 
 # Support
 
-If you get value from this project, please consider supporting my continued work with a donation. Any and all donations are truly appreciated.
+If you get value from this project, please consider supporting my work with a donation. All donations are truly appreciated.
+
+Donate via BTC Pay Server:
 
 * [https://donate.bitcoinexplorer.org](https://donate.bitcoinexplorer.org)
+
+Or, via a lightning address:
+
+thanks@donate.btc21.org
 
 
 [npm-ver-img]: https://img.shields.io/npm/v/btc-rpc-explorer.svg?style=flat
 [npm-ver-url]: https://www.npmjs.com/package/btc-rpc-explorer
 [npm-dl-img]: http://img.shields.io/npm/dm/btc-rpc-explorer.svg?style=flat
 [npm-dl-url]: https://npmcharts.com/compare/btc-rpc-explorer?minimal=true
+
+[npm-dl-weekly-img]: https://badgen.net/npm/dw/btc-rpc-explorer?icon=npm&cache=300
+[npm-dl-monthly-img]: https://badgen.net/npm/dm/btc-rpc-explorer?icon=npm&cache=300
+[npm-dl-yearly-img]: https://badgen.net/npm/dy/btc-rpc-explorer?icon=npm&cache=300
+[npm-dl-alltime-img]: https://badgen.net/npm/dt/btc-rpc-explorer?icon=npm&cache=300&label=total%20downloads
 

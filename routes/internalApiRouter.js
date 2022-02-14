@@ -92,9 +92,59 @@ router.get("/mempool-txs/:txids", function(req, res, next) {
 });
 
 
+const difficultyFileCache = utils.fileCache(config.filesystemCacheDir, `difficulty-by-blockheight.json`);
+let difficultyByBlockheightCache = difficultyFileCache.tryLoadJson() || {};
+let difficultyByBlockheightCacheDirty = false;
 
-const predictedBlocksStatuses = {};
-const predictedBlocksOutputs = {};
+(function () {
+	const writeDifficultyCache = () => {
+		if (difficultyByBlockheightCacheDirty) {
+			difficultyFileCache.writeJson(difficultyByBlockheightCache);
+		}
+	};
+
+	setInterval(writeDifficultyCache, 60000);
+})();
+
+router.get("/difficulty-by-height/:blockHeights", asyncHandler(async (req, res, next) => {
+	const blockHeightStrs = req.params.blockHeights.split(",");
+	
+	const blockHeights = [];
+	const results = {};
+	for (var i = 0; i < blockHeightStrs.length; i++) {
+		if (difficultyByBlockheightCache[blockHeightStrs[i]]) {
+			results[parseInt(blockHeightStrs[i])] = difficultyByBlockheightCache[blockHeightStrs[i]];
+
+		} else {
+			blockHeights.push(parseInt(blockHeightStrs[i]));
+		}
+	}
+
+	const blockHeaders = await coreApi.getBlockHeadersByHeight(blockHeights);
+
+	blockHeaders.forEach(header => {
+		difficultyByBlockheightCache[`${header.height}`] = {
+			difficulty: header.difficulty,
+			time: header.time
+		};
+
+		difficultyByBlockheightCacheDirty = true;
+
+		results[header.height] = {
+			difficulty: header.difficulty,
+			time: header.time
+		};
+	});
+
+	res.json(results);
+
+	next();
+}));
+
+
+
+const predictedBlocksStatuses = Object.create(null);
+const predictedBlocksOutputs = Object.create(null);
 
 router.get("/predicted-blocks-status", asyncHandler(async (req, res, next) => {
 	const statusId = req.query.statusId;
@@ -160,8 +210,8 @@ router.get("/build-predicted-blocks", asyncHandler(async (req, res, next) => {
 
 
 
-const mempoolSummaryStatuses = {};
-const mempoolSummaries = {};
+const mempoolSummaryStatuses = Object.create(null);
+const mempoolSummaries = Object.create(null);
 
 router.get("/mempool-summary-status", asyncHandler(async (req, res, next) => {
 	const statusId = req.query.statusId;
@@ -232,8 +282,8 @@ router.get("/build-mempool-summary", asyncHandler(async (req, res, next) => {
 
 
 
-const miningSummaryStatuses = {};
-const miningSummaries = {};
+const miningSummaryStatuses = Object.create(null);
+const miningSummaries = Object.create(null);
 
 router.get("/mining-summary-status", asyncHandler(async (req, res, next) => {
 	const statusId = req.query.statusId;

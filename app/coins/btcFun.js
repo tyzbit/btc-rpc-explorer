@@ -22,6 +22,16 @@ module.exports = {
 		},
 		{
 			type: "tx",
+			date: "2010-07-29",
+			chain: "main",
+			txid: "e411dbebd2f7d64dafeef9b14b5c59ec60c36779d43f850e5e347abee1e1a455",
+			blockHeight: 71036,
+			summary: "Early transaction with MANY (4,000+) OP_CHECKSIG commands, before this DoS vector was fixed.",
+			alertBodyHtml: "Multiple transactions in Block #71,036, including this one, included MANY OP_CHECKSIG commands, causing nodes to perform unnecessary work, and helped identify a possible denial-of-service (DoS) attack. A new version of Bitcoin was quickly released. The new version did not cause a fork on the main network, though it did cause one on the test network (where someone had played around with the attack more)." ,
+			referenceUrl: "https://en.bitcoin.it/wiki/Common_Vulnerabilities_and_Exposures#CVE-2010-5138"
+		},
+		{
+			type: "tx",
 			date: "2009-10-12",
 			chain: "main",
 			txid: "7dff938918f07619abd38e4510890396b1cef4fbeca154fb7aafba8843295ea2",
@@ -340,7 +350,95 @@ module.exports = {
 			blockHash: "000000000000000000003b1e8108e0d85ad0f698ded94360b27e0ca766682b4f",
 			summary: "NYTimes 10/Mar/2021 House Gives Final Approval to Biden's $1.9T Pandemic Relief",
 			alertBodyHtml: "In celebration of their public listing and in homage to Satoshi's <a href='./block-height/0'>Genesis Block</a>, @Coinbase asked F2Pool to embed a message in the blockchain: 'NYTimes 10/Mar/2021 House Gives Final Approval to Biden's $1.9T Pandemic Relief'.",
-			referenceUrl: "https://twitter.com/coinbase/status/1382338154053607429?s=20"
+			referenceUrl: "https://twitter.com/coinbase/status/1382338154053607429"
+		},
+		{
+			type: "blockheight",
+			date: "2021-06-07",
+			chain: "main",
+			blockHeight: 686604,
+			blockHash: "0000000000000000000ccaca16c648fc1a2dce9749af651f9bf3ab2e778980a9",
+			summary: "Diario El Salvador 6/Jun/2021 Bitcoin tendra validez legal",
+			alertBodyHtml: "Immortalizing the proposed legislation in El Salvador to classify bitcoin as legal tender in the country (a bill written in collaboration with <a href='https://Strike.me'>Strike.me</a>) Slush Pool embedded the headline: 'Diario El Salvador 6/Jun/2021 Bitcoin tendra validez legal'.",
+			referenceUrl: "https://twitter.com/slush_pool/status/1401763623417098243"
+		},
+		{
+			type: "blockheight",
+			date: "2021-06-13",
+			chain: "main",
+			blockHeight: 687455,
+			blockHash: "00000000000000000001464428893b618817bff3128a6e17a2c043de53ca4673",
+			summary: "Taproot Lock-In via Speedy Trial mechanism.",
+			alertBodyHtml: "As the last block of epoch #340, wherein over 90% of blocks were flagged by their miners to indicate Taproot acceptance/readiness, the mining of this block represents the lock-in of the Taproot soft fork on the network via the Speedy Trial activation mechanism. After lock-in, there was a delay period of 11 epochs before nodes began enforcing Taproot's rules in <a href='./block-height/709632'>Block #709,632</a>.",
+			referenceUrl: "https://github.com/bitcoin/bitcoin/pull/21686"
+		},
+		{
+			type: "blockheight",
+			date: "2021-11-14",
+			chain: "main",
+			blockHeight: 709632,
+			blockHash: "0000000000000000000687bca986194dc2c1f949318629b44bb54ec0a94d8244",
+			summary: "The first Taproot-enforcing block",
+			alertBodyHtml: "Nearly 4 years after the Taproot upgrade was conceived, and after a contentious process of deciding how to safely upgrade the network, the Taproot soft fork locked in with the mining of <a href='./block-height/687455'>Block #687,455</a> and then finally began to be enforced by nodes in this block.",
+			referenceUrl: "https://twitter.com/pwuille/status/1403725170993336322"
+		},
+		{
+			type: "tx",
+			date: "2021-11-14",
+			chain: "main",
+			txid: "777c998695de4b7ecec54c058c73b2cab71184cf1655840935cd9388923dc288",
+			blockHeight: 709632,
+			summary: "The first (post-activation) Pay-to-Taproot (P2TR) transaction in Bitcoin's history.",
+			alertBodyHtml: "Saluting the network's upgrade with a cheerful OP_RETURN message 'gm taproot 🥕', <a href='https://twitter.com/FedericoTenga'>@FedericoTenga</a> overpaid by ~3.3x (a fee rate of ~2,500 sat/vB) for the historic honor of sending the first (post-activation) mainnet Pay-to-Taproot (P2TR) transaction. (Note that there exist several quirky pre-activation P2TR outputs, including <a href='./tx/b53e3bc5edbb41b34a963ecf67eb045266cf841cab73a780940ce6845377f141'>the true 'first-ever' P2TR output</a>.)",
+			referenceUrl: "https://twitter.com/FedericoTenga/status/1459755752080519168"
+		},
+		{
+			type: "tx",
+			date: "2021-11-14",
+			chain: "main",
+			txid: "33e794d097969002ee05d336686fc03c9e15a597c1b9827669460fac98799036",
+			blockHeight: 709635,
+			summary: "The first mainnet spend of a Pay-to-Taproot (P2TR) output.",
+			referenceUrl: "https://twitter.com/achow101/status/1459759674723651585"
+		},
+		{
+			type: "tx",
+			date: "2021-11-14",
+			chain: "main",
+			txid: "2eb8dbaa346d4be4e82fe444c2f0be00654d8cfd8c4a9a61b11aeaab8c00b272",
+			blockHeight: 709635,
+			summary: "The first use of OP_CHECKSIGADD",
+			alertBodyHtml: "Created by a modified version of <a href='https://twitter.com/bitcoindevkit'>@bitcoindevkit</a>, this Taproot script-spend with a 1-of-2 multisig is the first mainnet transaction to use OP_CHECKSIGADD.",
+			referenceUrl: "https://twitter.com/afilini/status/1459763243556163584"
+		},
+		{
+			type: "tx",
+			date: "2021-07-23",
+			chain: "main",
+			txid: "b10c007c60e14f9d087e0291d4d0c7869697c6681d979c6639dbd960792b4d41",
+			blockHeight: 692261,
+			summary: "The (real) first mainnet spend of Pay-to-Taproot (P2TR) outputs.",
+			alertBodyHtml: "This interesting transaction exists in the blockchain only because of special coordination with F2Pool. Because this transaction spends Pay-to-Taproot outputs, and because it was created before Taproot activation, it was considered \"non-standard\" and would not be relayed across the Bitcoin network, despite technically being valid. Therefore, as a technical demonstration, <a href='https://b10c.me'>https://b10c.me</a> coordinated with F2Pool to mine this non-standard transaction, wherein the P2TR outputs were effectively anyone-can-spend outputs.",
+			referenceUrl: "https://b10c.me/blog/007-spending-p2tr-pre-activation/"
+		},
+		{
+			type: "tx",
+			date: "2019-12-17",
+			chain: "main",
+			txid: "b53e3bc5edbb41b34a963ecf67eb045266cf841cab73a780940ce6845377f141",
+			blockHeight: 608548,
+			summary: "The (real) first mainnet Pay-to-Taproot output.",
+			alertBodyHtml: "Created LONG before Taproot lock-in, let alone activation, this transaction's #0 output is the first ever P2TR output. It was created by Matthew Zipkin to test sending support for bech32 witness version 1. Interestingly, this output, along with 3 other pre-Activation P2TR outputs, was also SPENT before activation in <a href='./tx/b10c007c60e14f9d087e0291d4d0c7869697c6681d979c6639dbd960792b4d41'>Transaction b10c007...</a>, which required special coordination with F2Pool.",
+			referenceUrl: "https://b10c.me/blog/007-spending-p2tr-pre-activation/"
+		},
+		{
+			type: "tx",
+			date: "2021-12-06",
+			chain: "main",
+			txid: "562ff53512901dfdd0fca0d6b6a79444aad5767db716ece7c0a1bd15482b6384",
+			blockHeight: 712928,
+			summary: "Far-future dated Locktime value.",
+			alertBodyHtml: "The 'locktime' value of a transaction usually specifies the earliest time that a transaction may be mined (included in a block). The value can take one of two forms: a block height (if the value is &leq; 500M), or a unix timestamp. The locktime value of this transaction seemingly indicates that the transaction cannot be mined until the year 2076. But, because this is a coinbase transaction (created by a miner in the process of mining a block), its locktime value does not need to honor the usual purpose, and may instead be representing some other data from the miner. This situation arises fairly regularly in coinbase transactions."
 		},
 
 
@@ -388,6 +486,6 @@ module.exports = {
 			summary: "The coinbase transaction of the Genesis Block.",
 			alertBodyHtml: "This transaction doesn't really exist! This is the coinbase transaction of the <a href='./block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'>Bitcoin Genesis Block</a>. For more background about this special-case transaction, you can read <a href='https://github.com/bitcoin/bitcoin/issues/3303'>this brief discussion</a> among some of the <a href='https://bitcoin.org'>Bitcoin</a> developers.",
 			referenceUrl: "https://github.com/bitcoin/bitcoin/issues/3303"
-		},
+		}
 	]
 };

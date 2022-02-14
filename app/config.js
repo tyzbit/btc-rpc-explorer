@@ -20,7 +20,6 @@ const coins = require("./coins.js");
 const credentials = require("./credentials.js");
 
 const currentCoin = process.env.BTCEXP_COIN || "BTC";
-const defaultTheme = process.env.BTCEXP_UI_THEME || "dark";
 
 const rpcCred = credentials.rpc;
 
@@ -55,6 +54,7 @@ for (let i = 0; i < electrumServerUriStrings.length; i++) {
 	"BTCEXP_NO_INMEMORY_RPC_CACHE",
 	"BTCEXP_RPC_ALLOWALL",
 	"BTCEXP_ELECTRUM_TXINDEX",
+	"BTCEXP_UI_HIDE_INFO_NOTES",
 
 ].forEach(function(item) {
 	if (process.env[item] === undefined) {
@@ -87,7 +87,13 @@ module.exports = {
 	baseUrl: baseUrl,
 
 	coin: currentCoin,
-	defaultTheme: defaultTheme,
+
+	displayDefaults: {
+		displayCurrency: (process.env.BTCEXP_DISPLAY_CURRENCY || "btc"),
+		localCurrency: (process.env.BTCEXP_LOCAL_CURRENCY || "usd"),
+		theme: (process.env.BTCEXP_UI_THEME || "dark"),
+		timezone: (process.env.BTCEXP_UI_TIMEZONE || "local")
+	},
 
 	cookieSecret: cookieSecret,
 
@@ -185,6 +191,7 @@ module.exports = {
 	redisUrl:process.env.BTCEXP_REDIS_URL,
 
 	site: {
+		hideInfoNotes: process.env.BTCEXP_UI_HIDE_INFO_NOTES,
 		homepage:{
 			recentBlocksCount: parseInt(process.env.BTCEXP_UI_HOME_PAGE_LATEST_BLOCKS_COUNT || (slowDeviceMode ? 5 : 10))
 		},
@@ -201,9 +208,9 @@ module.exports = {
 		toolSections: [
 			{name: "Basics", items: [0, 2]},
 			{name: "Mempool", items: [4, 16, 5]},
-			{name: "Analysis", items: [9, 10, 11, 12, 3]},
+			{name: "Analysis", items: [9, 18, 10, 11, 12, 3]},
 			{name: "Technical", items: [15, 6, 7, 1]},
-			{name: "Fun", items: [8, 13]},
+			{name: "Fun", items: [8, 17, 13]},
 		]
 	},
 
@@ -229,13 +236,16 @@ module.exports = {
 	/* 11 */	{name:"Block Analysis", url:"./block-analysis", desc:"Summary analysis for all transactions in a block.", fontawesome:"fas fa-angle-double-down"},
 	/* 12 */	{name:"Difficulty History", url:"./difficulty-history", desc:"Details of difficulty changes over time.", fontawesome:"fas fa-chart-line"},
 
-	/* 13 */	{name:"Whitepaper Extracter", url:"./bitcoin-whitepaper", desc:"Extract the Bitcoin whitepaper from data embedded within the blockchain.", fontawesome:"far fa-file-alt"},
+	/* 13 */	{name:"Whitepaper Extractor", url:"./bitcoin-whitepaper", desc:"Extract the Bitcoin whitepaper from data embedded within the blockchain.", fontawesome:"far fa-file-alt"},
 	
 	/* 14 */	{name:"Predicted Blocks", url:"./predicted-blocks", desc:"View predicted future blocks based on the current mempool.", fontawesome:"fas fa-arrow-circle-right"},
 
 	/* 15 */	{name:"API", url:"./api/docs", desc:"View docs for the public API.", fontawesome:"fas fa-toolbox"},
 
 	/* 16 */	{name:"Mining Template", url:"./mining-template", desc:"View a template for the the next block based on the current mempool.", fontawesome:"fas fa-filter"},
+	/* 17 */	{name:"Quotes", url:"./quotes", desc:"Curated list of Bitcoin-related quotes.", fontawesome:"fas fa-comment-dots"},
+
+	/* 18 */	{name:"UTXO Set", url:"./utxo-set", desc:"View the latest UTXO Set.", fontawesome:"fas fa-coins"},
 	]
 };
 

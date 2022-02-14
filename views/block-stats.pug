@@ -9,9 +9,9 @@ block content
 	if (rpcApiUnsupportedError)
 		div.alert.alert-danger(style="margin-bottom: 200px;")
 			span Your node version doesn't support the 
-				span.font-monospace #{rpcApiUnsupportedError.rpc}
+				span #{rpcApiUnsupportedError.rpc}
 				span  RPC. To use this tool you need to upgrade to 
-				span.font-monospace v#{rpcApiUnsupportedError.version}
+				span v#{rpcApiUnsupportedError.version}
 				span  or later.
 
 	else
@@ -34,7 +34,7 @@ block content
 			hr
 
 			div.mb-2
-				span.border-dotted(title="Select the list of graphs to be displayed.", data-bs-toggle="tooltip") Active Graphs
+				span.border-dotted.text-card-highlight.text-uppercase.fw-light(title="Select the list of graphs to be displayed.", data-bs-toggle="tooltip") Active Graphs
 
 			.clearfix
 				each graphId, graphIndex in graphIds

@@ -31,7 +31,6 @@ block content
 
 				.row.p-2
 					.col-md-3
-						small.me-2 GET
 						a(href=(item.testUrl ? `.${item.testUrl}` : `.${item.url}`), target="_blank") #{item.url}
 
 					.col-md-1
@@ -40,7 +39,17 @@ block content
 
 					.col-md-8
 						
-						| #{item.desc}
+						div #{item.desc}
+
+						if (item.optionalParams)
+							.mt-2
+								.mb-1
+									small.me-2 Optional parameters
+								
+								each x, xName in item.optionalParams
+									div
+										+lightBadge(xName)
+										span.small #{x}
 
 						if (false && item.example)
 							.mt-3

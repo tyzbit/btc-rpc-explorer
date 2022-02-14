@@ -18,42 +18,45 @@ block content
 						div Check your RPC connection info and/or check this application's error log for possible hints about the cause of this issue.
 	else
 
-		+dismissableInfoAlert("homepageWelcomeBannerDismissed")
-			.clearfix
-				.float-start
-					h4.fw-light.mb-2 Welcome to Bitcoin Explorer!
-				.float-start
-					if (config.demoSite)
-						- var networkNameMap = {"main": "Mainnet", "test": "Testnet", "signet": "Signet"};
-						span.badge.bg-primary.mb-1.ms-0.ms-md-3.mt-1(title=`This is a public demo, but this tool is designed to be installed and run by all Bitcoiners...<br/><i>Don't Trust, Verify</i>!`, data-bs-toggle="tooltip", data-bs-html="true")
-							span.me-2 #{networkNameMap[global.activeBlockchain]} Demo
-							i.fas.fa-sticky-note
+		+dismissableAlert("homepageWelcomeBannerDismissed")
+			h5 Bitcoin Explorer
+				span.fw-light :
+					span.fst-italic.ms-1 The free, open-source, easy-to-setup, easy-to-use, self-hosted explorer
 			
 
-			.mb-2 An easy-to-use, educational explorer whose <u>only dependency is your <b>Bitcoin Core</b> node</u>!
-			.mb-3
-				- var features = ["Open-Source", "Easy Setup", "Low Hardware Requirements", "Fun!"];
+			span.fw-light Protect your privacy while enjoying the conveniences of public explorers. Made for Bitcoiners by Bitcoiners. Enjoy!
 
-				each feature in features
-					span.badge.bg-light.text-dark.border.me-2
-						span.me-2 #{feature}
-						i.fas.fa-check
-			
-			.mt-4.mb-2
+			hr
+
+			.fa-lg.mt-2
 				if (global.sourcecodeProjectMetadata)
-					a.btn.btn-primary.mb-2.mb-md-1.me-3(href="https://github.com/janoside/btc-rpc-explorer", title="View source code on Github", data-bs-toggle="tooltip", data-bs-placement="bottom")
-						i.fab.fa-github.fa-lg.me-2
+					a.btn.btn-sm.btn-primary.mb-2.mb-md-1.me-3(href="https://github.com/janoside/btc-rpc-explorer", title="View source code on Github", data-bs-toggle="tooltip", data-bs-placement="bottom")
+						i.fab.fa-github.fa-lg.text-white.me-2
 						| View Source
 
-				a.btn.btn-primary.mb-2.mb-md-1.me-3(href="https://donate.bitcoinexplorer.org", target="_blank", title="Support this project with a donation", data-bs-toggle="tooltip", data-bs-placement="bottom")
-					i.fas.fa-heart.text-danger.fa-lg.me-2
+				a.btn.btn-sm.btn-primary.mb-2.mb-md-1.me-3(href="https://donate.bitcoinexplorer.org", target="_blank", title="Support this project with a donation", data-bs-toggle="tooltip", data-bs-placement="bottom")
+					i.fas.fa-heart.fa-lg.text-danger.me-2
 					| Donate
-
-				a.btn.btn-primary.mb-2.mb-md-1(href="https://twitter.com/BitcoinExplorer", target="_blank", title="Follow @BitcoinExplorer on Twitter", data-bs-toggle="tooltip", data-bs-placement="bottom")
-					i.fab.fa-twitter.text-twitter.fa-lg.me-2
-					| @BitcoinExplorer
 					
+				a.btn.btn-sm.btn-primary.mb-2.mb-md-1.me-3(href="https://twitter.com/BitcoinExplorer", target="_blank", title="Follow @BitcoinExplorer on Twitter", data-bs-toggle="tooltip", data-bs-placement="bottom")
+					i.fab.fa-twitter.fa-lg.text-twitter.me-2
+					| @BitcoinExplorer
 
+		
+		if (getblockchaininfo.softforks && getblockchaininfo.softforks.taproot && getblockchaininfo.softforks.taproot.bip9)
+			- var minTaprootHeight = getblockchaininfo.softforks.taproot.bip9.min_activation_height;
+			- var blocksLeft = minTaprootHeight - getblockchaininfo.blocks;
+			//- var blocksLeft = -145;
+
+			if (blocksLeft > 0)
+				+blockCountdown("Taproot Activation", blocksLeft)
+					.mb-2 The softfork known as Taproot will activate on Bitcoin's mainnet at block height 709,632. After activation, any Bitcoin user will be able to use a new address type that enables new features and functionality. The Taproot upgrade has been ~4 years in the making!
+					| Read more about Taproot's history from Pieter Wuille (one of its architects) <a href="https://twitter.com/pwuille/status/1403725170993336322">here</a>.
+
+			else if (blocksLeft <= 0 && blocksLeft > -144)
+				.alert.alert-success
+					h5 Taproot: Activation Height Reached 🎉
+					| Taproot has activated on Bitcoin's mainnet as of block height <a href="./block-height/709632">709,632</a>!
 				
 
 		if (getblockchaininfo.initialblockdownload && !["regtest", "signet"].includes(global.activeBlockchain))
@@ -63,7 +66,7 @@ block content
 				div.mb-1 Your node is currently downloading and verifying blockchain data. Until the process is finished, some features of this tool will be unusable and/or unreliable.
 
 				span.fw-bold Progress: 
-				span.font-monospace #{new Decimal(getblockchaininfo.verificationprogress).times(100).toDP(3)}%
+				span #{new Decimal(getblockchaininfo.verificationprogress).times(100).toDP(3)}%
 
 
 		
@@ -71,32 +74,33 @@ block content
 		
 		
 		
-		if (nextBlockTemplate)
+		if (true || nextBlockTemplate)
 			if (false)
 				pre
 					code.json #{JSON.stringify(nextBlockFeeRateGroups, null, 4)}
 
-			.clearfix
-				.float-start
+			.d-flex.justify-content-between
+				div
 					- var desc = "Prediction for the next block, based on the output of the getblocktemplate command";
 					+sectionTitle("Predicted Next Block", false, null, null, null, desc)
 
-				.float-start
-					a.ms-2(href="./mining-template") See details
+				div
+					a.small.ms-2(href="./mining-template") Next block details &raquo;
 			
-			+contentSection
-				+summaryRow(3)
-					+summaryItem("Transactions")
-						| #{nextBlockTemplate.transactions.length.toLocaleString()}
+			#index-next-block
+				+contentSection
+					+summaryRow(3)
+						+summaryItem("Transactions")
+							.text-center.text-reset
+								.spinner-border.spinner-border-sm
 
-					+summaryItem("Fee Rates", "Minimum and maximum fee rates for transactions that are predicted to be included in the next block.", "sat/vB")
-						+numWithMutedDecimals(new Decimal(nextBlockMinFeeRate).toDP(2).toString())
-						span.mx-2 -
-						+numWithMutedDecimals(new Decimal(nextBlockMaxFeeRate).toDP(2).toString())
-
-						
-					+summaryItem("Total Fees", "Sum of fees for all transactions that are predicted to be included in the next block.")
-						+valueDisplay(nextBlockTotalFees)
+						+summaryItem("Fee Rates", "Minimum and maximum fee rates for transactions that are predicted to be included in the next block.", "sat/vB")
+							.text-center
+								.spinner-border.spinner-border-sm
+							
+						+summaryItem("Total Fees", "Sum of fees for all transactions that are predicted to be included in the next block.")
+							.text-center
+								.spinner-border.spinner-border-sm
 
 				if (false)
 					.mt-4
@@ -117,26 +121,30 @@ block content
 
 
 		if (latestBlocks)
-			+contentSection("Latest Blocks")
+			.d-flex.justify-content-between
+				div
+					+sectionTitle("Latest Blocks")
+
+				div
+					a.small.ms-2(href="./blocks") Browse blocks &raquo;
+
+			+contentSection
 				- var blocks = latestBlocks;
 				- var blockOffset = 0;
-				- var hideBlockIndex = true;
 
 				include includes/blocks-list.pug
-
-				if (blocks.length % 2 == 1)
-					hr
-				else
-					.mb-2
-
-				.text-center.pt-1
-					a.btn.btn-primary.btn-sm(href="./blocks")
-						i.fas.fa-cubes.me-2
-						| Browse Blocks &raquo;
 							
 
 		+contentSection("Tools")
 			include includes/tools-card.pug
 				
 
+block endOfBody
+	script.
+		$(document).ready(function() {
+			$.get("./snippet/next-block", function(data) {
+				$("#index-next-block").html(data);
+				enableTooltipsAndPopovers();
+			});
+		});
 		

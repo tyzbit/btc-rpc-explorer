@@ -1,23 +1,70 @@
-##### Unreleased
+##### v3.3.0
+###### 2021-12-07
+
+* New tool for viewing the UTXO Set: [/utxo-set](./utxo-set)
+* New API actions:
+	* [/api/blockchain/utxo-set](./api/blockchain/utxo-set)
+	* [/api/address/yourAddress](./api/address/yourAddress)
+	* [/api/mining/next-block](./api/mining/next-block)
+	* [/api/mining/next-block/txids](./api/mining/next-block/txids)
+	* [/api/mining/next-block/includes/:txid](./api/mining/next-block/includes/yourTxid)
+	* [/api/mining/miner-summary](./api/mining/miner-summary?since=1d)
+* Major fixes for data displayed in [/tx-stats](./tx-stats) tool
+* Updated miners, including identification of "Patoshi"-pattern blocks
+* [/node-details](./node-details): Include `coinstatsindex` status
+* Support querying UTXO Set even with slowDeviceMode=true, iff coinstatsindex is available
+* Fix for difficulty adjustment estimate
+* [/difficulty-history](./difficulty-history): Support for viewing different time ranges
+* When viewing unconfirmed transaction details, show an info dialog if the transaction is predicted to be confirmed in the next block
+* Performance improvements
+	* Fix for performance degradation over time due to slow "estimatedSupply" function
+	* Homepage speedup by making "Estimated Next Block" data load asynchonously
+	* Caching for [/difficulty-history](./difficulty-history) data
+* Unicode formatting for OP_RETURN and other similar data (with ascii+hex accessible via toggle)
+* New `.env` options for setting defaults (see `.env-sample` for details):
+	* BTCEXP_DISPLAY_CURRENCY (btc,sat,local)
+	* BTCEXP_LOCAL_CURRENCY (usd,eur,gbp)
+	* BTCEXP_UI_TIMEZONE (utc,local)
+	* BTCEXP_UI_HIDE_INFO_PANELS (true,false)
+* Support for displaying timestamps in local timezone (by using browser default, or setting a manual offset)
+* Cleanup treatment of `locktime` on transaction details pages
+* Unique favicon color based on the active network (mainnet=orange, testnet=green, signet=magenta, regtest=gray)
+* Lots of minor styling improvements
+* Error handling improvements
+* Fix for `/api/quotes/all`
+* Fix for incorrect date on "Diario El Salvador..." fun item (thanks [@Dirkson643](https://github.com/Dirkson643))
+* New `Fun` items related to Taproot activation
+* Performance log admin page at [/admin/perf-log](./admin/perf-log)
+* Updated dependencies
+
+
+##### v3.2.0
+###### 2021-08-10
 
 * Public API! See the docs at [/api/docs](./api/docs) (thanks [@pointbiz](https://github.com/pointbiz))
 * XPUB pages: search for any xpub (ypub, zpub, etc) and see summary details and a list of associated addresses (thanks [@pointbiz](https://github.com/pointbiz))
-* Mempool Summary: add top-fee transactions table
 * Homepage: add "Predicted Next Block" section
+* Mempool Summary: add top-fee transactions table
+* Improvements to transaction details UI, especially on smaller screens
+* Cleanup support for Taproot/bech32m
 * New [/mining-template](./mining-template) tool, showing structured output of `getblocktemplate` command
-* Various improvements to charts and graphs throughout the tool
+* Various improvements to charts and graphs throughout the tool (including lots of y-axis changes: linear->log)
 * Better support for BIP9 soft forks shown on [/node-details](./node-details) (e.g. Taproot ST in 0.21.1) (Thanks [@Pantamis](https://github.com/Pantamis))
 * New "Recent" and "Favorites" sections on [/rpc-browser](./rpc-browser)
-* On blocks lists show min/avg/max fee rates instead of just avg
+* Block lists: show (min, avg, max) fee rates instead of just avg
 * Random Bitcoin-related quote shown in footer on each page load
+* New [/quotes](./quotes), curated list of Bitcoin-related quotes (each quote also having its own page like [this](`./quote/0`))
+* Preemptive support for upcoming format change to `getrawtransaction` output (thanks [@xanoni](https://github.com/xanoni))
 * Fix for incorrect homepage block count when using `BTCEXP_UI_HOME_PAGE_LATEST_BLOCKS_COUNT`
 * Fix for inaccurate difficulty adjustment estimates
 * Link to Tor v3 Hidden Service in footer
 * Fix for `DEBUG` environment variable being ignored
 * Fix for [/rpc-terminal](./rpc-terminal) not parsing non-int parameters properly
+* Fix for edge case where txindex availability check fails at startup (add retries with exp. backoff)
+* Fix for tiny-value display (i.e. 1e-8 -> 0.00000001)
 * Misc UI/UX tweaks
-* Update bootstrap: v5.0.0-beta3 -> v5.0.1
-* Update chart.js: v2.9.3 -> v3.2.1
+* Cache busting for frontend resources
+* Improved error handling in many places
 * Updated dependencies
 
 

@@ -18,6 +18,7 @@ debug.enable(debugDefaultCategories);
 const debugLog = debug("btcexp:app");
 const debugErrorLog = debug("btcexp:error");
 const debugPerfLog = debug("btcexp:actionPerformace");
+const debugAccessLog = debug("btcexp:access");
 
 const configPaths = [
 	path.join(os.homedir(), ".config", "btc-rpc-explorer.env"),
@@ -83,7 +84,7 @@ const momentDurationFormat = require("moment-duration-format");
 const coreApi = require("./app/api/coreApi.js");
 const rpcApi = require("./app/api/rpcApi.js");
 const coins = require("./app/coins.js");
-const request = require("request");
+const axios = require("axios");
 const qrcode = require("qrcode");
 const addressApi = require("./app/api/addressApi.js");
 const electrumAddressApi = require("./app/api/electrumAddressApi.js");
@@ -93,13 +94,14 @@ const auth = require('./app/auth.js');
 const sso = require('./app/sso.js');
 const markdown = require("markdown-it")();
 const v8 = require("v8");
-const axios = require("axios");
 var compression = require("compression");
 
 require("./app/currencies.js");
 
 const package_json = require('./package.json');
 global.appVersion = package_json.version;
+global.cacheId = global.appVersion;
+debugLog(`Default cacheId '${global.cacheId}'`);
 
 global.btcNodeSemver = "0.0.0";
 
@@ -109,6 +111,7 @@ const internalApiActionsRouter = require('./routes/internalApiRouter.js');
 const apiActionsRouter = require('./routes/apiRouter.js');
 const snippetActionsRouter = require('./routes/snippetRouter.js');
 const adminActionsRouter = require('./routes/adminRouter.js');
+const testActionsRouter = require('./routes/testRouter.js');
 
 const expressApp = express();
 
@@ -168,6 +171,7 @@ expressApp.set('view engine', 'pug');
 if (process.env.NODE_ENV != "local") {
 	// enable view cache regardless of env (development/production)
 	// ref: https://pugjs.org/api/express.html
+	debugLog("Enabling view caching (performance will be improved but template edits will not be reflected)")
 	expressApp.enable('view cache');
 }
 
@@ -243,24 +247,21 @@ function loadMiningPoolConfigs() {
 	});
 }
 
-function getSourcecodeProjectMetadata() {
+async function getSourcecodeProjectMetadata() {
 	var options = {
 		url: "https://api.github.com/repos/janoside/btc-rpc-explorer",
 		headers: {
 			'User-Agent': 'request'
 		}
 	};
+	try {
+		const response = await axios(options);
 
-	request(options, function(error, response, body) {
-		if (error == null && response && response.statusCode && response.statusCode == 200) {
-			var responseBody = JSON.parse(body);
+		global.sourcecodeProjectMetadata = response.data;
 
-			global.sourcecodeProjectMetadata = responseBody;
-
-		} else {
-			utils.logError("3208fh3ew7eghfg", {error:error, response:response, body:body});
+	} catch (err) {
+		utils.logError("3208fh3ew7eghfg", err);
 		}
-	});
 }
 
 function loadChangelog() {
@@ -402,69 +403,85 @@ async function onRpcConnectionVerified(getnetworkinfo, getblockchaininfo) {
 		setInterval(utils.refreshExchangeRates, 1800000);
 	}
 
-	// UTXO pull
-	refreshUtxoSetSummary();
-	setInterval(refreshUtxoSetSummary, 30 * 60 * 1000);
-
 
 	// 1d / 7d volume
 	refreshNetworkVolumes();
 	setInterval(refreshNetworkVolumes, 30 * 60 * 1000);
 
 
-	assessTxindexAvailability();
+	await assessTxindexAvailability();
+
+
+	// UTXO pull
+	refreshUtxoSetSummary();
+	setInterval(refreshUtxoSetSummary, 30 * 60 * 1000);
 }
 
+var txindexCheckCount = 0;
 async function assessTxindexAvailability() {
 	// Here we try to call getindexinfo to assess availability of txindex
 	// However, getindexinfo RPC is only available in v0.21+, so the call
 	// may return an "unsupported" error. If/when it does, we will fall back
 	// to assessing txindex availability by querying a known txid
 	debugLog("txindex check: trying getindexinfo");
-	global.getindexinfo = await coreApi.getIndexInfo();
 
-	debugLog(`txindex check: getindexinfo=${JSON.stringify(global.getindexinfo)}`);
+	try {
+		global.getindexinfo = await coreApi.getIndexInfo();
 
-	if (global.getindexinfo.txindex) {
-		// getindexinfo was available, and txindex is also available...easy street
-		
-		global.txindexAvailable = true;
+		debugLog(`txindex check: getindexinfo=${JSON.stringify(global.getindexinfo)}`);
 
-		debugLog("txindex check: available!");
-
-	} else if (global.getindexinfo.minRpcVersionNeeded) {
-		// here we find out that getindexinfo is unavailable on our node because
-		// we're running pre-v0.21, so we fall back to querying a known txid
-		// to assess txindex availability
-
-		debugLog("txindex check: getindexinfo unavailable, trying txid lookup");
-
-		try {
-			// lookup a known TXID as a test for whether txindex is available
-			let knownTx = await coreApi.getRawTransaction(coinConfig.knownTransactionsByNetwork[global.activeBlockchain]);
-
-			// if we get here without an error being thrown, we know we're able to look up by txid
-			// thus, txindex is available
+		if (global.getindexinfo.txindex) {
+			// getindexinfo was available, and txindex is also available...easy street
+			
 			global.txindexAvailable = true;
 
-			debugLog("txindex check: available! (pre-v0.21)");
+			debugLog("txindex check: available!");
 
-		} catch (e) {
-			// here we were unable to query by txid, so we believe txindex is unavailable
+		} else if (global.getindexinfo.minRpcVersionNeeded) {
+			// here we find out that getindexinfo is unavailable on our node because
+			// we're running pre-v0.21, so we fall back to querying a known txid
+			// to assess txindex availability
+
+			debugLog("txindex check: getindexinfo unavailable, trying txid lookup");
+
+			try {
+				// lookup a known TXID as a test for whether txindex is available
+				let knownTx = await coreApi.getRawTransaction(coinConfig.knownTransactionsByNetwork[global.activeBlockchain]);
+
+				// if we get here without an error being thrown, we know we're able to look up by txid
+				// thus, txindex is available
+				global.txindexAvailable = true;
+
+				debugLog("txindex check: available! (pre-v0.21)");
+
+			} catch (e) {
+				// here we were unable to query by txid, so we believe txindex is unavailable
+				global.txindexAvailable = false;
+
+				debugLog("txindex check: unavailable");
+			}
+		} else {
+			// here getindexinfo is available (i.e. we're on v0.21+), but txindex is NOT available
 			global.txindexAvailable = false;
 
 			debugLog("txindex check: unavailable");
 		}
-	} else {
-		// here getindexinfo is available (i.e. we're on v0.21+), but txindex is NOT available
-		global.txindexAvailable = false;
+	} catch (e) {
+		utils.logError("o2328ryw8wsde", e);
 
-		debugLog("txindex check: unavailable");
+		var retryTime = parseInt(Math.min(15 * 60 * 1000, 1000 * 10 * Math.pow(2, txindexCheckCount)));
+		txindexCheckCount++;
+
+		debugLog(`txindex check: error in rpc getindexinfo; will try again in ${retryTime}ms`);
+
+		// try again in 5 mins
+		setTimeout(assessTxindexAvailability, retryTime);
 	}
 }
 
-function refreshUtxoSetSummary() {
+async function refreshUtxoSetSummary() {
 	if (config.slowDeviceMode) {
+		if (!global.getindexinfo || !global.getindexinfo.coinstatsindex) {
 		global.utxoSetSummary = null;
 		global.utxoSetSummaryPending = false;
 
@@ -472,17 +489,14 @@ function refreshUtxoSetSummary() {
 
 		return;
 	}
+	}
 
 	// flag that we're working on calculating UTXO details (to differentiate cases where we don't have the details and we're not going to try computing them)
 	global.utxoSetSummaryPending = true;
 
-	coreApi.getUtxoSetSummary().then(function(result) {
-		global.utxoSetSummary = result;
+	global.utxoSetSummary = await coreApi.getUtxoSetSummary(true, false);
 
-		result.lastUpdated = Date.now();
-
-		debugLog("Refreshed utxo summary: " + JSON.stringify(result));
-	});
+	debugLog("Refreshed utxo summary: " + JSON.stringify(global.utxoSetSummary));
 }
 
 function refreshNetworkVolumes() {
@@ -600,11 +614,17 @@ expressApp.onStartup = function() {
 			if (err) {
 				utils.logError("3fehge9ee", err, {desc:"Error accessing git repo"});
 
+				global.cacheId = global.appVersion;
+				debugLog(`Error getting sourcecode version, continuing to use default cacheId '${global.cacheId}'`);
+
 				debugLog(`Starting ${global.coinConfig.ticker} RPC Explorer, v${global.appVersion} (code: unknown commit) at http://${config.host}:${config.port}${config.baseUrl}`);
 
 			} else {
 				global.sourcecodeVersion = log.all[0].hash.substring(0, 10);
+				global.cacheId = log.all[0].hash.substring(0, 10);
 				global.sourcecodeDate = log.all[0].date.substring(0, "0000-00-00".length);
+
+				debugLog(`Using sourcecode version as cacheId: '${global.cacheId}'`);
 
 				debugLog(`Starting ${global.coinConfig.ticker} RPC Explorer, v${global.appVersion} (commit: '${global.sourcecodeVersion}', date: ${global.sourcecodeDate}) at http://${config.host}:${config.port}${config.baseUrl}`);
 			}
@@ -613,6 +633,9 @@ expressApp.onStartup = function() {
 		});
 
 	} else {
+		global.cacheId = global.appVersion;
+		debugLog(`No sourcecode version available, continuing to use default cacheId '${global.cacheId}'`);
+
 		debugLog(`Starting ${global.coinConfig.ticker} RPC Explorer, v${global.appVersion} at http://${config.host}:${config.port}${config.baseUrl}`);
 
 		expressApp.continueStartup();
@@ -730,30 +753,31 @@ expressApp.use(function(req, res, next) {
 
 
 	if (!req.session.userSettings) {
-		req.session.userSettings = JSON.parse(req.cookies["user-settings"] || "{}");
+		req.session.userSettings = Object.create(null);
+
+		const cookieSettings = JSON.parse(req.cookies["user-settings"] || "{}");
+		for (const [key, value] of Object.entries(cookieSettings)) {
+			req.session.userSettings[key] = value;
+		}
 	}
 
 	const userSettings = req.session.userSettings;
 	res.locals.userSettings = userSettings;
 
+	// set defaults
+	userSettings.displayCurrency = (userSettings.displayCurrency || config.displayDefaults.displayCurrency);
+	userSettings.localCurrency = (userSettings.localCurrency || config.displayDefaults.localCurrency);
+	userSettings.uiTimezone = (userSettings.uiTimezone || config.displayDefaults.timezone);
+	userSettings.uiTheme = (userSettings.uiTheme || config.displayDefaults.theme);
 
 
-	if (!userSettings.displayCurrency) {
-		userSettings.displayCurrency = "btc";
-	}
-
-	if (!userSettings.localCurrency) {
-		userSettings.localCurrency = "usd";
-	}
-
-	// theme
-	if (!userSettings.uiTheme) {
-		userSettings.uiTheme = config.defaultTheme;
-	}
-
-
+	// make available in templates
 	res.locals.displayCurrency = userSettings.displayCurrency;
 	res.locals.localCurrency = userSettings.localCurrency;
+	res.locals.uiTimezone = userSettings.uiTimezone;
+	res.locals.uiTheme = userSettings.uiTheme;
+	res.locals.userTzOffset = userSettings.userTzOffset || "unset";
+	res.locals.browserTzOffset = userSettings.browserTzOffset || "0";
 
 
 	if (!["/", "/connect"].includes(req.originalUrl)) {
@@ -774,10 +798,6 @@ expressApp.use(function(req, res, next) {
 
 		req.session.userMessage = null;
 		req.session.userMessageType = null;
-	}
-
-	if (btcQuotes) {
-		res.locals.footerQuote = btcQuotes.items[utils.randomInt(0, btcQuotes.items.length)];
 	}
 
 	if (req.session.query) {
@@ -815,10 +835,22 @@ expressApp.use(config.baseUrl + 'api/', apiActionsRouter);
 expressApp.use(config.baseUrl + 'snippet/', snippetActionsRouter);
 expressApp.use(config.baseUrl + 'admin/', adminActionsRouter);
 
+if (expressApp.get("env") === "local") {
+	expressApp.use(config.baseUrl + 'test/', testActionsRouter);
+}
+
+
 expressApp.use(function(req, res, next) {
 	var time = Date.now() - req.startTime;
-	
-	debugPerfLog("Finished action '%s' in %d ms", req.path, time);
+	var userAgent = req.headers['user-agent'];
+	var crawler = utils.getCrawlerFromUserAgentString(userAgent);
+
+	if (crawler) {
+		debugAccessLog(`Finished action '${req.path}' (${res.statusCode}) in ${time}ms for crawler '${crawler}' / '${userAgent}'`);
+
+	} else {
+	debugAccessLog(`Finished action '${req.path}' (${res.statusCode}) in ${time}ms for UA '${userAgent}'`);
+	}
 
 	if (!res.headersSent) {
 		next();
@@ -835,12 +867,34 @@ expressApp.use(function(req, res, next) {
 
 /// error handlers
 
+const sharedErrorHandler = (req, err) => {
+	if (err && err.message && err.message.includes("Not Found")) {
+		const path = err.toString().substring(err.toString().lastIndexOf(" ") + 1);
+		const userAgent = req.headers['user-agent'];
+		const crawler = utils.getCrawlerFromUserAgentString(userAgent);
+		const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; 
+
+		const attributes = { path:path };
+
+		if (crawler) {
+			attributes.crawler = crawler;
+		}
+
+		debugErrorLog(`404 NotFound: path=${path}, ip=${ip}, userAgent=${userAgent} (crawler=${(crawler != null)}${crawler ? crawler : ""})`);
+
+		utils.logError(`NotFound`, err, attributes, false);
+
+	} else {
+		utils.logError("ExpressUncaughtError", err);
+	}
+};
+
 // development error handler
 // will print stacktrace
 if (expressApp.get("env") === "development" || expressApp.get("env") === "local") {
 	expressApp.use(function(err, req, res, next) {
 		if (err) {
-			utils.logError("3289023yege", err);
+			sharedErrorHandler(req, err);
 		}
 
 		res.status(err.status || 500);
@@ -855,7 +909,7 @@ if (expressApp.get("env") === "development" || expressApp.get("env") === "local"
 // no stacktraces leaked to user
 expressApp.use(function(err, req, res, next) {
 	if (err) {
-		utils.logError("2309832hcxwgeeew", err);
+		sharedErrorHandler(req, err);
 	}
 
 	res.status(err.status || 500);

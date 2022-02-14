@@ -88,6 +88,10 @@ function getPeerInfo() {
 	return getRpcData("getpeerinfo");
 }
 
+function getBlockTemplate() {
+	return getRpcDataWithParams({method:"getblocktemplate", parameters:[{"rules": ["segwit"]}]});
+}
+
 function getAllMempoolTxids() {
 	return getRpcDataWithParams({method:"getrawmempool", parameters:[false]});
 }
@@ -132,8 +136,13 @@ function getBlockStatsByHeight(height) {
 	}
 }
 
-function getUtxoSetSummary() {
-	return getRpcData("gettxoutsetinfo");
+function getUtxoSetSummary(useCoinStatsIndexIfAvailable=true) {
+	if (useCoinStatsIndexIfAvailable && global.getindexinfo && global.getindexinfo.coinstatsindex) {
+		return getRpcDataWithParams({method:"gettxoutsetinfo", parameters:["muhash"]});
+
+	} else {
+		return getRpcData("gettxoutsetinfo");
+	}
 }
 
 function getRawMempool() {
@@ -181,8 +190,13 @@ function getRawMempoolEntry(txid) {
 	});
 }
 
-function getChainTxStats(blockCount) {
-	return getRpcDataWithParams({method:"getchaintxstats", parameters:[blockCount]});
+function getChainTxStats(blockCount, blockhashEnd=null) {
+	let params = [blockCount];
+	if (blockhashEnd) {
+		params.push(blockhashEnd);
+	}
+
+	return getRpcDataWithParams({method:"getchaintxstats", parameters:params});
 }
 
 function getBlockByHeight(blockHeight) {
@@ -229,7 +243,7 @@ function getBlockByHash(blockHash) {
 			return getRawTransaction(block.tx[0], blockHash).then(function(tx) {
 				block.coinbaseTx = tx;
 				block.totalFees = utils.getBlockTotalFeesFromCoinbaseTxAndBlockHeight(tx, block.height);
-				block.miner = utils.getMinerFromCoinbaseTx(tx);
+				block.miner = utils.identifyMiner(tx, block.height);
 				return block;
 			})
 		}).catch(function(err) {
@@ -443,12 +457,16 @@ function getRpcData(cmd, verifyingConnection=false) {
 					if (result0 && result0.name && result0.name == "RpcError") {
 						logStats(cmd, false, new Date().getTime() - startTime, false);
 
+						debugLog("RpcErrorResult-01: " + JSON.stringify(result0));
+
 						throw new Error(`RpcError: type=errorResponse-01`);
 					}
 				}
 
-				if (result.name && result.name == "RpcError") {
+				if (result && result.name && result.name == "RpcError") {
 					logStats(cmd, false, new Date().getTime() - startTime, false);
+
+					debugLog("RpcErrorResult-02: " + JSON.stringify(result));
 
 					throw new Error(`RpcError: type=errorResponse-02`);
 				}
@@ -462,7 +480,7 @@ function getRpcData(cmd, verifyingConnection=false) {
 			} catch (err) {
 				err.userData = {request:cmd};
 
-				utils.logError("9u4278t5h7rfhgf", err, {request:cmd});
+				utils.logError("RpcError-001", err, {request:cmd});
 
 				logStats(cmd, false, new Date().getTime() - startTime, false);
 
@@ -496,12 +514,16 @@ function getRpcDataWithParams(request, verifyingConnection=false) {
 					if (result0 && result0.name && result0.name == "RpcError") {
 						logStats(request.method, true, new Date().getTime() - startTime, false);
 
+						debugLog("RpcErrorResult-03: request=" + JSON.stringify(request) + ", result=" + JSON.stringify(result0));
+
 						throw new Error(`RpcError: type=errorResponse-03`);
 					}
 				}
 
-				if (result.name && result.name == "RpcError") {
+				if (result && result.name && result.name == "RpcError") {
 					logStats(request.method, true, new Date().getTime() - startTime, false);
+
+					debugLog("RpcErrorResult-04: " + JSON.stringify(result));
 
 					throw new Error(`RpcError: type=errorResponse-04`);
 				}
@@ -515,7 +537,7 @@ function getRpcDataWithParams(request, verifyingConnection=false) {
 			} catch (err) {
 				err.userData = {request:request};
 
-				utils.logError("283h7ewsede", err, {request:request});
+				utils.logError("RpcError-002", err, {request:`${request.method}${request.parameters ? ("(" + JSON.stringify(request.parameters) + ")") : ""}`});
 
 				logStats(request.method, true, new Date().getTime() - startTime, false);
 
@@ -596,6 +618,7 @@ module.exports = {
 	getBlockHeaderByHeight: getBlockHeaderByHeight,
 	getBlockHashByHeight: getBlockHashByHeight,
 	getTxOut: getTxOut,
+	getBlockTemplate: getBlockTemplate,
 
 	minRpcVersions: minRpcVersions
 };

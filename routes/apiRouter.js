@@ -12,6 +12,7 @@ const qrcode = require('qrcode');
 const bitcoinjs = require('bitcoinjs-lib');
 const sha256 = require("crypto-js/sha256");
 const hexEnc = require("crypto-js/enc-hex");
+const { bech32, bech32m } = require("bech32");
 const Decimal = require("decimal.js");
 const asyncHandler = require("express-async-handler");
 const markdown = require("markdown-it")();
@@ -161,53 +162,272 @@ router.get("/blockchain/coins", function(req, res, next) {
 	}
 });
 
+router.get("/blockchain/utxo-set", asyncHandler(async (req, res, next) => {
+	const utxoSetSummary = await coreApi.getUtxoSetSummary(true, true);
+	
+	res.json(utxoSetSummary);
+
+	next();
+}));
+
+
+
+
+
+
+
+/// ADDRESSES
+
+router.get("/address/:address", asyncHandler(async (req, res, next) => {
+	try {
+		const { perfId, perfResults } = utils.perfLogNewItem({action:"api.address"});
+		res.locals.perfId = perfId;
+
+		var limit = config.site.addressTxPageSize;
+		var offset = 0;
+		var sort = "desc";
+
+		res.locals.maxTxOutputDisplayCount = config.site.addressPage.txOutputMaxDefaultDisplay;
+
+		
+		if (req.query.limit) {
+			limit = parseInt(req.query.limit);
+		}
+
+		if (req.query.offset) {
+			offset = parseInt(req.query.offset);
+		}
+
+		if (req.query.sort) {
+			sort = req.query.sort;
+		}
+
+
+		const address = utils.asAddress(req.params.address);
+
+		const transactions = [];
+		const addressApiSupport = addressApi.getCurrentAddressApiFeatureSupport();
+		
+		const result = {};
+
+		let addressEncoding = "unknown";
+
+		let base58Error = null;
+		let bech32Error = null;
+		let bech32mError = null;
+
+		if (address.match(/^[132m].*$/)) {
+			try {
+				let base58Data = bitcoinjs.address.fromBase58Check(address);
+				result.base58 = {hash:base58Data.hash.toString("hex"), version:base58Data.version};
+
+				addressEncoding = "base58";
+
+			} catch (err) {
+				utils.logError("api.AddressParseError-001", err);
+			}
+		}
+
+		if (addressEncoding == "unknown") {
+			try {
+				let bech32Data = bitcoinjs.address.fromBech32(address);
+				result.bech32 = {data:bech32Data.data.toString("hex"), version:bech32Data.version};
+
+				addressEncoding = "bech32";
+
+			} catch (err) {
+				utils.logError("api.AddressParseError-002", err);
+			}
+		}
+
+		if (addressEncoding == "unknown") {
+			try {
+				let bech32mData = bech32m.decode(address);
+				result.bech32m = {words:Buffer.from(bech32mData.words).toString("hex"), version:bech32mData.version};
+
+				addressEncoding = "bech32m";
+
+			} catch (err) {
+				utils.logError("api.AddressParseError-003", err);
+			}
+		}
+
+		if (addressEncoding == "unknown") {
+			res.json({success:false, error:"Invalid address"});
+
+			next();
+
+			return;
+		}
+
+		result.encoding = addressEncoding;
+
+		result.notes = [];
+		if (global.specialAddresses[address] && global.specialAddresses[address].type == "fun") {
+			let funInfo = global.specialAddresses[address].addressInfo;
+
+			notes.push(funInfo);
+		}
+
+		if (global.miningPoolsConfigs) {
+			for (var i = 0; i < global.miningPoolsConfigs.length; i++) {
+				if (global.miningPoolsConfigs[i].payout_addresses[address]) {
+					let note = global.miningPoolsConfigs[i].payout_addresses[address];
+					note.type = "payout address for miner";
+
+					result.notes.push(note);
+
+					break;
+				}
+			}
+		}
+
+		if (result.notes.length == 0) {
+			delete result.notes;
+		}
+
+
+
+		const validateaddressResult = await coreApi.getAddress(address);
+		result.validateaddress = validateaddressResult;
+
+		const promises = [];
+
+		var addrScripthash = hexEnc.stringify(sha256(hexEnc.parse(validateaddressResult.scriptPubKey)));
+		addrScripthash = addrScripthash.match(/.{2}/g).reverse().join("");
+
+		result.electrumScripthash = addrScripthash;
+
+		promises.push(utils.timePromise("address.getAddressDetails", async () => {
+			const addressDetailsResult = await addressApi.getAddressDetails(address, validateaddressResult.scriptPubKey, sort, limit, offset);
+
+			var addressDetails = addressDetailsResult.addressDetails;
+
+			result.txHistory = addressDetails;
+			result.txHistory.request = {};
+			result.txHistory.request.limit = limit;
+			result.txHistory.request.offset = offset;
+			result.txHistory.request.sort = sort;
+
+			if (addressDetailsResult.errors && addressDetailsResult.errors.length > 0) {
+				result.txHistory.errors = addressDetailsResult.errors;
+			}
+		}, perfResults));
+
+		await utils.awaitPromises(promises);
+		
+		res.json(result);
+
+		next();
+
+	} catch (e) {
+		res.json({success:false});
+
+		next();
+	}
+}));
+
+
+
 
 
 
 /// MINING
 
-router.get("/mining/hashrate", function(req, res, next) {
-	var blocksPerDay = 144;
-	var rates = [];
-	var timePeriods = [(1*blocksPerDay), (7*blocksPerDay), (30* blocksPerDay)];
-	
-	coreApi.getNetworkHashrate(timePeriods[0]).then(function(info0){
-		var hashRateData = utils.formatLargeNumber(info0, 1)
-		rates[0] = hashRateData[0];
-		
-		coreApi.getNetworkHashrate(timePeriods[1]).then(function(info1){
-			var hashRateData = utils.formatLargeNumber(info1, 1)
-			rates[1] = hashRateData[0];
-			
-			coreApi.getNetworkHashrate(timePeriods[2]).then(function(info2){
-				var hashRateData = utils.formatLargeNumber(info2, 1)
-				rates[2] = hashRateData[0];
-		
-				res.json({"1Day": rates[0]*1, "7Day": rates[1]*1, "30Day": rates[2]*1});
-			});
+router.get("/mining/hashrate", asyncHandler(async (req, res, next) => {
+	try {
+		var decimals = 3;
+
+		if (req.query.decimals) {
+			decimals = parseInt(req.query.decimals);
+		}
+
+		var blocksPerDay = 24 * 60 * 60 / coinConfig.targetBlockTimeSeconds;
+		var rates = [];
+
+		var timePeriods = [
+			1 * blocksPerDay,
+			7 * blocksPerDay,
+			30 * blocksPerDay,
+			90 * blocksPerDay,
+			365 * blocksPerDay,
+		];
+
+		var promises = [];
+
+		for (var i = 0; i < timePeriods.length; i++) {
+			const index = i;
+			const x = timePeriods[i];
+
+			promises.push(new Promise(async (resolve, reject) => {
+				try {
+					const hashrate = await coreApi.getNetworkHashrate(x);
+					var summary = utils.formatLargeNumber(hashrate, decimals);
+					
+					rates[index] = {
+						val: parseFloat(summary[0]),
+
+						unit: `${summary[1].name}hash`,
+						unitAbbreviation: `${summary[1].abbreviation}H`,
+						unitExponent: summary[1].exponent,
+						unitMultiplier: summary[1].val,
+
+						raw: summary[0] * summary[1].val,
+						
+						string1: `${summary[0]}x10^${summary[1].exponent}`,
+						string2: `${summary[0]}e${summary[1].exponent}`,
+						string3: `${(summary[0] * summary[1].val).toLocaleString()}`
+					};
+
+					resolve();
+
+				} catch (ex) {
+					utils.logError("8ehfwe8ehe", ex);
+
+					resolve();
+				}
+			}));
+		}
+
+		await Promise.all(promises);
+
+		res.json({
+			"1Day": rates[0],
+			"7Day": rates[1],
+			"30Day": rates[2],
+			"90day": rates[3],
+			"365Day": rates[4]
 		});
-	}).catch(next);
-});
+
+	} catch (e) {
+		utils.logError("23reuhd8uw92D", e);
+
+		res.json({
+			error: typeof(e) == "string" ? e : utils.stringifySimple(e)
+		});
+	}
+}));
 
 router.get("/mining/diff-adj-estimate", asyncHandler(async (req, res, next) => {
+	const { perfId, perfResults } = utils.perfLogNewItem({action:"api.diff-adj-estimate"});
+	res.locals.perfId = perfId;
+
 	var promises = [];
-	const getblockchaininfo = await utils.timePromise("promises.api.getBlockchainInfo", coreApi.getBlockchainInfo());
+	const getblockchaininfo = await utils.timePromise("api_diffAdjEst_getBlockchainInfo", coreApi.getBlockchainInfo);
 	var currentBlock;
 	var difficultyPeriod = parseInt(Math.floor(getblockchaininfo.blocks / coinConfig.difficultyAdjustmentBlockCount));
 	var difficultyPeriodFirstBlockHeader;
 	
-	promises.push(new Promise(async (resolve, reject) => {
-		currentBlock = await utils.timePromise("promises.api.getBlockHeaderByHeight", coreApi.getBlockHeaderByHeight(getblockchaininfo.blocks));
-		resolve();
-	}));
+	promises.push(utils.timePromise("api.diff-adj-est.getBlockHeaderByHeight", async () => {
+		currentBlock = await coreApi.getBlockHeaderByHeight(getblockchaininfo.blocks);
+	}, perfResults));
 	
-	promises.push(new Promise(async (resolve, reject) => {
+	promises.push(utils.timePromise("api.diff-adj-est.getBlockHeaderByHeight2", async () => {
 		let h = coinConfig.difficultyAdjustmentBlockCount * difficultyPeriod;
-		difficultyPeriodFirstBlockHeader = await utils.timePromise("promises.api.getBlockHeaderByHeight", coreApi.getBlockHeaderByHeight(h));
-		resolve();
-	}));
-	
-	await Promise.all(promises);
+		difficultyPeriodFirstBlockHeader = await coreApi.getBlockHeaderByHeight(h);
+	}, perfResults));
+
+	await utils.awaitPromises(promises);
 	
 	var firstBlockHeader = difficultyPeriodFirstBlockHeader;
 	var heightDiff = currentBlock.height - firstBlockHeader.height;
@@ -217,17 +437,140 @@ router.get("/mining/diff-adj-estimate", asyncHandler(async (req, res, next) => {
 	var dt = new Date().getTime() / 1000 - firstBlockHeader.time;
 	var predictedBlockCount = dt / coinConfig.targetBlockTimeSeconds;
 	var timePerBlock2 = dt / heightDiff;
+
+	var blockRatioPercent = new Decimal(blockCount / predictedBlockCount).times(100);
+	if (blockRatioPercent > 400) {
+		blockRatioPercent = new Decimal(400);
+	}
+	if (blockRatioPercent < 25) {
+		blockRatioPercent = new Decimal(25);
+	}
 		
 	if (predictedBlockCount > blockCount) {
-		var diffAdjPercent = new Decimal(100).minus(new Decimal(blockCount / predictedBlockCount).times(100)).times(-1);
+		var diffAdjPercent = new Decimal(100).minus(blockRatioPercent).times(-1);
 		//diffAdjPercent = diffAdjPercent * -1;
 
 	} else {
-		var diffAdjPercent = new Decimal(100).minus(new Decimal(predictedBlockCount / blockCount).times(100));
-	}	
+		var diffAdjPercent = blockRatioPercent.minus(new Decimal(100));
+	}
 	
 	res.send(diffAdjPercent.toFixed(2).toString());
 }));
+
+router.get("/mining/next-block", asyncHandler(async (req, res, next) => {
+	const promises = [];
+
+	const result = {};
+
+	promises.push(utils.timePromise("api/next-block/getblocktemplate", async () => {
+		let nextBlockEstimate = await utils.timePromise("api/next-block/getNextBlockEstimate", async () => {
+			return await coreApi.getNextBlockEstimate();
+		});
+
+
+		//result.blockTemplate = nextBlockEstimate.blockTemplate;
+		//result.feeRateGroups = nextBlockEstimate.feeRateGroups;
+		result.txCount = nextBlockEstimate.blockTemplate.transactions.length;
+
+		result.minFeeRate = nextBlockEstimate.minFeeRate;
+		result.maxFeeRate = nextBlockEstimate.maxFeeRate;
+		result.minFeeTxid = nextBlockEstimate.minFeeTxid;
+		result.maxFeeTxid = nextBlockEstimate.maxFeeTxid;
+
+		result.totalFees = nextBlockEstimate.totalFees.toNumber();
+	}));
+
+	await utils.awaitPromises(promises);
+
+	res.json(result);
+}));
+
+router.get("/mining/next-block/txids", asyncHandler(async (req, res, next) => {
+	const promises = [];
+
+	const txids = [];
+
+	promises.push(utils.timePromise("api/next-block/getblocktemplate", async () => {
+		let nextBlockEstimate = await utils.timePromise("api/next-block/getNextBlockEstimate", async () => {
+			return await coreApi.getNextBlockEstimate();
+		});
+
+		nextBlockEstimate.blockTemplate.transactions.forEach(x => {
+			txids.push(x.txid);
+		});
+	}));
+
+	await utils.awaitPromises(promises);
+
+	res.json(txids);
+}));
+
+router.get("/mining/next-block/includes/:txid", asyncHandler(async (req, res, next) => {
+	const txid = req.params.txid;
+
+	const promises = [];
+
+	let txidIndex = -1;
+	let txCount = -1;
+
+	promises.push(utils.timePromise("api/next-block/getblocktemplate", async () => {
+		let nextBlockEstimate = await utils.timePromise("api/next-block/getNextBlockEstimate", async () => {
+			return await coreApi.getNextBlockEstimate();
+		});
+
+		txCount = nextBlockEstimate.blockTemplate.transactions.length;
+
+		for (let i = 0; i < nextBlockEstimate.blockTemplate.transactions.length; i++) {
+			if (nextBlockEstimate.blockTemplate.transactions[i].txid == txid) {
+				txidIndex = i;
+
+				return;
+			}
+		}
+	}));
+
+	await utils.awaitPromises(promises);
+
+	let response = {included:(txidIndex >= 0)};
+	if (txidIndex >= 0) {
+		response.index = txidIndex;
+		response.txCount = txCount;
+	}
+
+	res.json(response);
+}));
+
+router.get("/mining/miner-summary", asyncHandler(async (req, res, next) => {
+	let startHeight = -1;
+	let endHeight = -1;
+
+	if (req.query.since) {
+		const regex = /^([0-9]+)d$/;
+		const match = req.query.since.match(regex);
+
+		if (match) {
+			let days = parseInt(match[1]);
+			let getblockchaininfo = await coreApi.getBlockchainInfo();
+
+			startHeight = getblockchaininfo.blocks - 144 * days;
+			endHeight = getblockchaininfo.blocks;
+		}
+	} else if (req.query.startHeight && req.query.endHeight) {
+		startHeight = parseInt(req.query.startHeight);
+		endHeight = parseInt(req.query.endHeight);
+	}
+
+	if (startHeight == -1 || endHeight == -1) {
+		res.json({success:false, error:"Unknown start or end height - use either 'since' (e.g. 'since=7d') or 'startHeight'+'endHeight' parameters to specify the blocks to analyze."});
+
+		return;
+	}
+
+	const summary = await coreApi.buildMiningSummary(null, startHeight, endHeight, null);
+
+	res.json(summary);
+}));
+
 
 
 
@@ -266,6 +609,161 @@ router.get("/mempool/fees", function(req, res, next) {
 
 	}).catch(next);
 });
+
+
+
+
+
+/// UTIL
+
+router.get("/util/xyzpub/:extendedPubkey", asyncHandler(async (req, res, next) => {
+	try {
+		const extendedPubkey = req.params.extendedPubkey;
+		res.locals.extendedPubkey = extendedPubkey;
+
+		
+		let limit = 20;
+		if (req.query.limit) {
+			limit = parseInt(req.query.limit);
+		}
+		
+		let offset = 0;
+		if (req.query.offset) {
+			offset = parseInt(req.query.offset);
+		}
+
+		
+		let receiveAddresses = [];
+		let changeAddresses = [];
+		let relatedKeys = [];
+
+		let outputType = "Unknown";
+		let outputTypeDesc = null;
+		let bip32Path = "Unknown";
+
+		// if xpub/ypub/zpub convert to address under path m/0/0
+		if (extendedPubkey.match(/^(xpub|tpub).*$/)) {
+			outputType = "P2PKH";
+			outputTypeDesc = "Pay to Public Key Hash";
+			bip32Path = "m/44'/0'";
+
+			const xpub_tpub = global.activeBlockchain == "main" ? "xpub" : "tpub";
+			const ypub_upub = global.activeBlockchain == "main" ? "ypub" : "upub";
+			const zpub_vpub = global.activeBlockchain == "main" ? "zpub" : "vpub";
+
+			let xpub = extendedPubkey;
+			if (!extendedPubkey.startsWith(xpub_tpub)) {
+				xpub = utils.xpubChangeVersionBytes(extendedPubkey, xpub_tpub);
+			}
+
+			receiveAddresses = utils.bip32Addresses(extendedPubkey, "p2pkh", 0, limit, offset);
+			changeAddresses = utils.bip32Addresses(extendedPubkey, "p2pkh", 1, limit, offset);
+
+			if (!extendedPubkey.startsWith(xpub_tpub)) {
+				relatedKeys.push({
+					keyType: xpub_tpub,
+					key: utils.xpubChangeVersionBytes(xpub, xpub_tpub),
+					outputType: "P2PKH",
+					firstAddress: utils.bip32Addresses(xpub, "p2pkh", 0, 1, 0)[0]
+				});
+			}
+
+			relatedKeys.push({
+				keyType: ypub_upub,
+				key: utils.xpubChangeVersionBytes(xpub, ypub_upub),
+				outputType: "P2WPKH in P2SH",
+				firstAddress: utils.bip32Addresses(xpub, "p2sh(p2wpkh)", 0, 1, 0)[0]
+			});
+
+			relatedKeys.push({
+				keyType: zpub_vpub,
+				key: utils.xpubChangeVersionBytes(xpub, zpub_vpub),
+				outputType: "P2WPKH",
+				firstAddress: utils.bip32Addresses(xpub, "p2wpkh", 0, 1, 0)[0]
+			});
+
+		} else if (extendedPubkey.match(/^(ypub|upub).*$/)) {
+			outputType = "P2WPKH in P2SH";
+			outputTypeDesc = "Pay to Witness Public Key Hash (P2WPKH) wrapped inside Pay to Script Hash (P2SH), aka Wrapped Segwit";
+			bip32Path = "m/49'/0'";
+
+			const xpub_tpub = global.activeBlockchain == "main" ? "xpub" : "tpub";
+			const zpub_vpub = global.activeBlockchain == "main" ? "zpub" : "vpub";
+
+			const xpub = utils.xpubChangeVersionBytes(extendedPubkey, xpub_tpub);
+
+			receiveAddresses = utils.bip32Addresses(xpub, "p2sh(p2wpkh)", 0, limit, offset);
+			changeAddresses = utils.bip32Addresses(xpub, "p2sh(p2wpkh)", 1, limit, offset);
+
+			relatedKeys.push({
+				keyType: xpub_tpub,
+				key: xpub,
+				outputType: "P2PKH",
+				firstAddress: utils.bip32Addresses(xpub, "p2pkh", 0, 1, 0)[0]
+			});
+
+			relatedKeys.push({
+				keyType: zpub_vpub,
+				key: utils.xpubChangeVersionBytes(xpub, zpub_vpub),
+				outputType: "P2WPKH",
+				firstAddress: utils.bip32Addresses(xpub, "p2wpkh", 0, 1, 0)[0]
+			});
+
+		} else if (extendedPubkey.match(/^(zpub|vpub).*$/)) {
+			outputType = "P2WPKH";
+			outputTypeDesc = "Pay to Witness Public Key Hash, aka Native Segwit";
+			bip32Path = "m/84'/0'";
+
+			const xpub_tpub = global.activeBlockchain == "main" ? "xpub" : "tpub";
+			const ypub_upub = global.activeBlockchain == "main" ? "ypub" : "upub";
+
+			const xpub = utils.xpubChangeVersionBytes(extendedPubkey, xpub_tpub);
+
+			receiveAddresses = utils.bip32Addresses(xpub, "p2wpkh", 0, limit, offset);
+			changeAddresses = utils.bip32Addresses(xpub, "p2wpkh", 1, limit, offset);
+
+			relatedKeys.push({
+				keyType: xpub_tpub,
+				key: xpub,
+				outputType: "P2PKH",
+				firstAddress: utils.bip32Addresses(xpub, "p2pkh", 0, 1, 0)[0]
+			});
+
+			relatedKeys.push({
+				keyType: ypub_upub,
+				key: utils.xpubChangeVersionBytes(xpub, ypub_upub),
+				outputType: "P2WPKH in P2SH",
+				firstAddress: utils.bip32Addresses(xpub, "p2sh(p2wpkh)", 0, 1, 0)[0]
+			});
+
+		} else if (extendedPubkey.startsWith("Ypub")) {
+			outputType = "Multi-Sig P2WSH in P2SH";
+			bip32Path = "-";
+
+		} else if (extendedPubkey.startsWith("Zpub")) {
+			outputType = "Multi-Sig P2WSH";
+			bip32Path = "-";
+		}
+
+
+		res.json({
+			keyType: extendedPubkey.substring(0, 4),
+			outputType: outputType,
+			outputTypeDesc: outputTypeDesc,
+			bip32Path: bip32Path,
+			relatedKeys: relatedKeys,
+			receiveAddresses: receiveAddresses,
+			changeAddresses: changeAddresses
+		});
+
+		next();
+
+	} catch (err) {
+		res.locals.pageErrors.push(utils.logError("0923tygdusde", err));
+
+		next();
+	}
+}));
 
 
 
@@ -381,6 +879,14 @@ router.get("/quotes/random", function(req, res, next) {
 
 router.get("/quotes/all", function(req, res, next) {
 	res.json(btcQuotes.items);
+
+	next();
+});
+
+router.get("/quotes/:quoteIndex", function(req, res, next) {
+	var index = parseInt(req.params.quoteIndex);
+	
+	res.json(btcQuotes.items[index]);
 
 	next();
 });
