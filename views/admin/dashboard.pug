@@ -6,7 +6,7 @@ block headContent
 	title Admin Dashboard
 
 block content
-	+adminNav
+	+adminNav("Dashboard")
 
 
 	+pageTitle("Admin Dashboard")
@@ -31,6 +31,35 @@ block content
 			+contentSection("App Config")
 				pre
 					code.json #{JSON.stringify(appConfig, null, 4)}
+
+			if (JSON.stringify(appEventStats) != "{}")
+				+contentSection("App Events")
+					.table-responsive
+						table.table.table-borderless.table-hover.table-striped
+							thead
+								tr
+									th.text-start Event
+									th.text-end Count
+									th.text-end Last
+									th.text-end Params
+
+							tbody
+								each item, itemName in appEventStats
+									tr
+										td #{itemName}
+										
+										td.text-end #{item.count}
+
+										td.text-end
+											+timestamp(item.last.getTime() / 1000)
+
+										td.text-end
+											if (item.params)
+												each paramItem, paramKey in item.params
+													div
+														| #{paramKey}: #{paramItem.count}
+
+								
 
 			+contentSection("Memory Stats")
 				.table-responsive
@@ -79,22 +108,35 @@ block content
 							thead
 								tr
 									th Cache
+									th.text-end Try
 									th.text-end Hit
 									th.text-end Miss
-									th.text-end Hit Rate
+									th.text-end Error
 
 							tbody
 								each item, itemName in cacheStats
 									tr
 										td #{itemName}
+										td.text-end #{item.try.toLocaleString()}
 										td.text-end #{item.hit.toLocaleString()}
+											small.text-muted.ms-2 (
+												if (item.try > 0)
+													span #{(100 * item.hit / item.try).toLocaleString()}
+														small  %
+												| )
 										td.text-end #{item.miss.toLocaleString()}
-										td.text-end
-											if (item.hit > 0 || item.miss > 0)
-												span #{(100 * item.hit / (item.hit + item.miss)).toLocaleString()}
-													small  %
-											else
-												span -
+											small.text-muted.ms-2 (
+												if (item.try > 0)
+													span #{(100 * item.miss / item.try).toLocaleString()}
+														small  %
+												| )
+										td.text-end #{item.error.toLocaleString()}
+											small.text-muted.ms-2 (
+												if (item.try > 0)
+													span #{(100 * item.error / item.try).toLocaleString()}
+														small  %
+												| )
+											
 
 			+contentSection("Cache Sizes")
 				pre
